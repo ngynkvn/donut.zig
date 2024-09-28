@@ -65,5 +65,6 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_exe_unit_tests.step);
 
     const check_step = b.step("check", "Run checks");
+    check_step.dependOn(&exe.step);
     check_step.dependOn(&run_exe_unit_tests.step);
 }
