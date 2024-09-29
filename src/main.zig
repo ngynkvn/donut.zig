@@ -1,6 +1,9 @@
 const std = @import("std");
+
 const posix = std.posix;
 const system = std.posix.system;
+
+const tty = @import("tty.zig");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
@@ -10,10 +13,10 @@ const luminence = ".,-~:;=!*#$@";
 // Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn main() !void {
     // Get the window size via ioctl(2) call to tty
-    const tty = std.io.getStdIn();
-    defer tty.close();
+    const stdin = std.io.getStdIn();
+    defer stdin.close();
 
-    const raw = try enableRawMode(tty);
+    const raw = try tty.enableRawMode(stdin);
     defer {
         const errno = raw.restore_term();
         if (errno != .SUCCESS) {
@@ -66,6 +69,7 @@ pub fn main() !void {
 
     const tstep = 0.05;
     var t: f32 = 0;
+    const start: f64 = @floatFromInt(std.time.nanoTimestamp());
     while (t < maxt + 0.1) : (t += tstep) {
         const x = (r2 + r1 * @cos(t)) / z;
         const y = (r2 + r1 * @sin(t)) / (z * 0.5);
@@ -78,50 +82,7 @@ pub fn main() !void {
         try raw.write("*", .{});
     }
     _ = try raw.goto(0, 0);
-}
-
-const RawTerminal = struct {
-    // Terminal Codes
-    const ESC = "\x1b[";
-    const GOTO = ESC ++ "{d};{d}H";
-
-    orig_termios: posix.termios,
-    tty: std.fs.File,
-    width: u16,
-    height: u16,
-    fn restore_term(self: RawTerminal) posix.E {
-        const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
-        return posix.errno(rc);
-    }
-    // Move cursor to x, y
-    fn goto(self: RawTerminal, x: usize, y: usize) !void {
-        try std.fmt.format(self.tty.writer(), GOTO, .{ x, y });
-    }
-    fn write(self: RawTerminal, comptime fmt: []const u8, args: anytype) !void {
-        try std.fmt.format(self.tty.writer(), fmt, args);
-    }
-};
-fn enableRawMode(tty: std.fs.File) !RawTerminal {
-    const orig_termios = try posix.tcgetattr(tty.handle);
-    var raw = orig_termios;
-    // explanation here: https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
-    // TODO: check out the other flags later
-    raw.lflag.ECHO = false; // No echo from input
-    raw.lflag.ICANON = false; // Read byte by byte
-
-    // IOCGWINSZ (io control get window size (?))
-    // is a request signal for window size
-    var ws: posix.winsize = .{ .row = 0, .col = 0, .xpixel = 0, .ypixel = 0 };
-    const result = system.ioctl(tty.handle, posix.T.IOCGWINSZ, &ws);
-    if (posix.errno(result) != .SUCCESS) return error.IoctlReturnedNonZero;
-
-    const width = ws.col;
-    const height = ws.row;
-    std.log.debug("ws is {}x{}\n", .{ width, height });
-    return .{
-        .orig_termios = orig_termios,
-        .tty = tty,
-        .width = width,
-        .height = height,
-    };
+    const end: f64 = @floatFromInt(std.time.nanoTimestamp());
+    try raw.bottom();
+    std.debug.print("{d} seconds.", .{(end - start) / std.time.ns_per_s});
 }
