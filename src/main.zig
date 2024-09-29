@@ -59,20 +59,23 @@ pub fn main() !void {
 
     //  2-D circle drawn in 3d space:
     //  - (x,y,z) = (R2, 0, 0) + (R1cos(t), R1sin(t), 0)
-    // const r1 = 1.0;
-    // const r2 = 2.0;
-    // const z = 5.0;
-    // const t = 2 * std.math.pi;
-    //
-    // const tstep = 0.1;
-    // const tn = @round(t / tstep);
-    //
-    // for (0..tn) |i| {
-    //     std.debug.print("{}", .{i});
-    // }
-    for (1..raw.height) |y| {
-        try raw.goto(y, y);
-        try raw.write("{d}", .{y});
+    const r1 = 40.0;
+    const r2 = 100.0;
+    const z = 4.0;
+    const maxt = 2 * std.math.pi;
+
+    const tstep = 0.05;
+    var t: f32 = 0;
+    while (t < maxt + 0.1) : (t += tstep) {
+        const x = (r2 + r1 * @cos(t)) / z;
+        const y = (r2 + r1 * @sin(t)) / (z * 0.5);
+        const xx: u16 = @intFromFloat(@round(x));
+        const yy: u16 = @intFromFloat(@round(y));
+        const plotx = xx;
+        const ploty = yy;
+        //std.debug.print("{} {}\n", .{ plotx, ploty });
+        try raw.goto(plotx, ploty);
+        try raw.write("*", .{});
     }
     _ = try raw.goto(0, 0);
 }
