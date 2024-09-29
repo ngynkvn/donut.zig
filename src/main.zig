@@ -71,13 +71,17 @@ pub fn main() !void {
     //     std.debug.print("{}", .{i});
     // }
     for (1..raw.height) |y| {
-        try std.fmt.format(tty.writer(), ESC ++ "{d};{d}" ++ HOME, .{ y, y });
-        try std.fmt.format(tty.writer(), "{d}", .{y});
+        try raw.goto(y, y);
+        try raw.write("{d}", .{y});
     }
-    _ = try tty.write(HOME);
+    _ = try raw.goto(0, 0);
 }
 
 const RawTerminal = struct {
+    // Terminal Codes
+    const ESC = "\x1b[";
+    const GOTO = ESC ++ "{d};{d}H";
+
     orig_termios: posix.termios,
     tty: std.fs.File,
     width: u16,
@@ -85,6 +89,13 @@ const RawTerminal = struct {
     fn restore_term(self: RawTerminal) posix.E {
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
+    }
+    // Move cursor to x, y
+    fn goto(self: RawTerminal, x: usize, y: usize) !void {
+        try std.fmt.format(self.tty.writer(), GOTO, .{ x, y });
+    }
+    fn write(self: RawTerminal, comptime fmt: []const u8, args: anytype) !void {
+        try std.fmt.format(self.tty.writer(), fmt, args);
     }
 };
 fn enableRawMode(tty: std.fs.File) !RawTerminal {
@@ -111,11 +122,3 @@ fn enableRawMode(tty: std.fs.File) !RawTerminal {
         .height = height,
     };
 }
-
-// Terminal Codes
-const ESC = "\x1b[";
-const HOME = "H";
-const CURSOR_SAVE = "s";
-const CURSOR_RESET = "u";
-const UP = "#A";
-const DOWN = "#B";
