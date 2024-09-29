@@ -78,7 +78,6 @@ pub fn main() !void {
         const yy: u16 = @intFromFloat(@round(y));
         const plotx = xx;
         const ploty = yy;
-        //std.debug.print("{} {}\n", .{ plotx, ploty });
         try raw.goto(plotx, ploty);
         try raw.write("*", .{});
     }
@@ -86,4 +85,11 @@ pub fn main() !void {
     const end: f64 = @floatFromInt(std.time.nanoTimestamp());
     try raw.bottom();
     std.debug.print("{d} seconds.", .{(end - start) / std.time.ns_per_s});
+
+    var buffer: [128]u8 = undefined;
+    while (raw.read(&buffer) catch null) |n| {
+        for (buffer[0..n]) |c| {
+            _ = c;
+        }
+    }
 }

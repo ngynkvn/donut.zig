@@ -68,6 +68,10 @@ pub const RawMode = struct {
     pub fn bottom(self: RawMode) !void {
         try self.goto(self.width, self.height);
     }
+    /// read input
+    pub fn read(self: RawMode, buffer: []u8) !usize {
+        return self.tty.read(buffer);
+    }
     /// write to screen via fmt string
     pub fn write(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
         try std.fmt.format(self.tty.writer(), fmt, args);
