@@ -4,21 +4,21 @@ const posix = std.posix;
 const system = std.posix.system;
 
 const tty = @import("tty.zig");
+const E = tty.E;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
 const luminence = ".,-~:;=!*#$@";
 
-// We will draw a donut!
-// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
+/// We will draw a donut!
+/// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn main() !void {
-    // Get the window size via ioctl(2) call to tty
-    const stdin = std.io.getStdIn();
-    defer stdin.close();
+    const ttyh = try std.fs.openFileAbsolute(tty.TTY_HANDLE, .{ .mode = .read_write });
+    defer ttyh.close();
 
-    const raw = try tty.enableRawMode(stdin);
+    const raw = try tty.RawMode.enable(ttyh);
     defer {
-        const errno = raw.restore_term();
+        const errno = raw.restore();
         if (errno != .SUCCESS) {
             @panic("no good");
         }
@@ -70,6 +70,7 @@ pub fn main() !void {
     const tstep = 0.05;
     var t: f32 = 0;
     const start: f64 = @floatFromInt(std.time.nanoTimestamp());
+    try raw.write(E.CLEAR_SCREEN, .{});
     while (t < maxt + 0.1) : (t += tstep) {
         const x = (r2 + r1 * @cos(t)) / z;
         const y = (r2 + r1 * @sin(t)) / (z * 0.5);
