@@ -12,6 +12,8 @@ pub const E = struct {
     pub const ESC = "\x1b[";
     /// goto .{x, y}
     pub const GOTO = ESC ++ "{d};{d}H";
+    pub const CLEAR_DOWN = ESC ++ "0J";
+    pub const CLEAR_UP = ESC ++ "1J";
     pub const CLEAR_SCREEN = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
     pub const ALT_SCREEN = ESC ++ "";
 };
@@ -60,13 +62,10 @@ pub const RawMode = struct {
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
     }
-    /// Move cursor to (x, y)
+    /// Move cursor to (x, y) (column, row)
+    /// (0, 0) is defined as the bottom left corner of the terminal.
     pub fn goto(self: RawMode, x: usize, y: usize) !void {
-        try std.fmt.format(self.tty.writer(), E.GOTO, .{ x, y });
-    }
-    /// Move to bottom of screen
-    pub fn bottom(self: RawMode) !void {
-        try self.goto(self.width, self.height);
+        try std.fmt.format(self.tty.writer(), E.GOTO, .{ self.height - y, x });
     }
     /// read input
     pub fn read(self: RawMode, buffer: []u8) !usize {
@@ -77,3 +76,13 @@ pub const RawMode = struct {
         try std.fmt.format(self.tty.writer(), fmt, args);
     }
 };
+///The Braille unicode range is #x2800 - #x28FF, where each dot is one of 8 bits
+///    Because Braille was originally only 6 dots, the order of bits is:
+///    1 4
+///    2 5
+///    3 6
+///    7 8
+pub const BRAILLE = "⠀⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿";
+comptime {
+    @compileLog();
+}
