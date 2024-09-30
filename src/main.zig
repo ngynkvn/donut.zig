@@ -35,10 +35,11 @@ pub fn main() !void {
     var buffer: [128]u8 = undefined;
     var shift: f32 = 0.0;
     while (raw.read(&buffer) catch null) |n| {
-        for (buffer[0..n]) |c| {
-            if (c == '\r') {
-                return;
-            }
+        if (std.mem.eql(u8, buffer[0..n], "\r")) {
+            return;
+        }
+        if (std.mem.eql(u8, buffer[0..n], "\x03")) {
+            return;
         }
         _ = try raw.tty.write(buffer[0..n]);
         try draw.sin(allocator, raw, shift);
