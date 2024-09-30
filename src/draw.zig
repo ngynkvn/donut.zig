@@ -4,27 +4,22 @@ const tty = @import("tty.zig");
 const braille = @import("braille.zig");
 const E = tty.E;
 
+pub const Point = struct { x: f32, y: f32 };
+
 /// Drawing a circle in 2d can be defined by two variables:
 ///    - origin: an (x, y) point on the plane
 ///    - r: the desired radius of the circle
 ///
 /// Then, stepping from t=[0, 2pi] the circle is then defined by
 ///     c = origin + (r * cos(t), r * sin(t))
-pub fn circle(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
+pub fn circle(allocator: std.mem.Allocator, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
     var plt = braille.Plotter.init(allocator, raw);
     defer plt.deinit();
-    // radius of circle
-    const r = 20.0;
-    // origin
-    const ox = 50;
-    const oy = 30;
 
     const tmax = 2 * std.math.pi;
     const tstep = 0.02;
     var t: f32 = 0;
 
-    try raw.write(E.GOTO, .{ 0, 0 });
-    try raw.write(E.CLEAR_SCREEN, .{});
     // draw circle
     while (t < tmax + 0.1) : (t += tstep) {
         const x = (ox + r * @cos(t));
@@ -50,7 +45,7 @@ pub fn circle(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
         try raw.goto(plotx, ploty);
         _ = try raw.tty.write(&bbit);
         // Slight delay to see drawing!
-        std.time.sleep(std.time.ns_per_ms);
+        // std.time.sleep(std.time.ns_per_ms);
     }
 }
 
@@ -76,13 +71,13 @@ pub fn sin(allocator: std.mem.Allocator, raw: tty.RawMode, shift: f32) !void {
     const start: f64 = @floatFromInt(std.time.nanoTimestamp());
     var x: f32 = 0.0;
     // Clear the lines before rendering
-    for (8..12) |y| {
+    for (1..5) |y| {
         try raw.goto(0, y);
         try raw.write(E.CLEAR_LINE, .{});
     }
     try raw.write(E.SET_ANSI_FG, .{2});
     while (x < @as(f32, @floatFromInt(raw.width))) : (x += 0.1) {
-        const y = @sin(x + shift) * 2 + 10.0;
+        const y = @sin(x + shift) * 2 + 3.0;
         const c = try plt.plot(x, y);
         try raw.goto(@intFromFloat(x), @intFromFloat(y));
         _ = try raw.tty.write(&c);
@@ -181,6 +176,25 @@ pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
                 _ = try raw.tty.write(&char);
             }
         }
+    }
+}
+
+pub fn curve(allocator: std.mem.Allocator, raw: tty.RawMode, p0: Point, p1: Point, p2: Point) !void {
+    var plt = braille.Plotter.init(allocator, raw);
+    defer plt.deinit();
+    var t: f32 = 0;
+    while (t < 1.0) : (t += 0.01) {
+        const ax = lerp(t, p0.x, p1.x);
+        const ay = lerp(t, p0.y, p1.y);
+        const bx = lerp(t, p1.x, p2.x);
+        const by = lerp(t, p1.y, p2.y);
+        const cx = lerp(t, ax, bx);
+        const cy = lerp(t, ay, by);
+        const char = try plt.plot(cx, cy);
+        const plotx: u16 = @intFromFloat(@trunc(cx));
+        const ploty: u16 = @intFromFloat(@trunc(cy));
+        try raw.goto(plotx, ploty);
+        _ = try raw.tty.write(&char);
     }
 }
 

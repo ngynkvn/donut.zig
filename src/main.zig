@@ -24,12 +24,20 @@ pub fn main() !void {
 
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
     const start: f64 = @floatFromInt(std.time.nanoTimestamp());
-    try draw.circle(allocator, raw);
+    try draw.circle(allocator, raw, 20, 50, 30);
+    try draw.circle(allocator, raw, 5, 40, 36);
+    try draw.circle(allocator, raw, 3, 60, 32);
+    try draw.curve(
+        allocator,
+        raw,
+        .{ .x = 42, .y = 12 },
+        .{ .x = 46, .y = 8 },
+        .{ .x = 58, .y = 12 },
+    );
     try draw.coords(allocator, raw);
     const end: f64 = @floatFromInt(std.time.nanoTimestamp());
     try raw.goto(0, 0);
     try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
-    try draw.torus(allocator, raw);
 
     var buffer: [128]u8 = undefined;
     var shift: f32 = 0.0;
