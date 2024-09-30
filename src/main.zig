@@ -42,6 +42,7 @@ pub fn main() !void {
     var a: f32 = 0.0;
     var b: f32 = 0.0;
     var buffer: [128]u8 = undefined;
+    try raw.write(E.SET_ANSI_FG, .{2});
     while (raw.read(&buffer) catch null) |n| {
         if (std.mem.eql(u8, buffer[0..n], "\r")) {
             return;

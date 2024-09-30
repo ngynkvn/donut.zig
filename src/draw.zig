@@ -126,24 +126,67 @@ pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode, a: f32, b: f32) !vo
         // => (x*cos(p)-(z*sin(p)), y, x*sin(p)+z*cos(p))
         // Then we just repeat this for the other [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations)
     }
-    const k1 = 20.0;
+    const k1 = 15.0;
     const k2 = 5.0;
     const r1 = 1.0;
     const r2 = 3.0;
     var t: f32 = 0.0;
-    std.time.sleep(std.time.ns_per_s / 200);
     try raw.write(E.CLEAR_SCREEN, .{});
     while (t < 2 * std.math.pi) : (t += 0.3) {
         var p: f32 = 0;
-        while (p < 2 * std.math.pi) : (p += 0.3) {
+        while (p < 2 * std.math.pi) : (p += 0.2) {
             // So first, a circle.
             const cx: f32 = r2 + r1 * @cos(t);
             const cy: f32 = (r1 * @sin(t));
-            var z: f32 = 0.0;
+            const cz: f32 = 0;
             // Then apply the rotation to form the torus and movement
-            var x = cx * (@cos(b) * @cos(p) + @sin(a) * @sin(b) * @sin(p)) - (cy * @cos(a) * @cos(b));
-            var y = cx * (@sin(b) * @cos(p) - @sin(a) * @cos(b) * @sin(p)) + (cy * @cos(a) * @cos(b));
-            z = k2 + (@cos(a) * cx * @sin(p)) + (cy * @sin(a));
+
+            var x = cx;
+            var y = cy;
+            var z = cz;
+            // y-axis
+            {
+                const next = .{
+                    // zig fmt: off
+                    .x =  x*@cos(p) + 0 + z*@sin(p),
+                    .y =       0    + y +     0,
+                    .z = -x*@sin(p) + 0 + z*@cos(p),
+                    // zig fmt: on
+                };
+                x = next.x;
+                y = next.y;
+                z = next.z;
+            }
+            // x-axis
+            {
+                const next = .{
+                    // zig fmt: off
+                    .x = x +     0      +    0,
+                    .y = 0 + y*@cos(a) + z*@sin(a),
+                    .z = 0 - y*@sin(a) + z*@cos(a),
+                    // zig fmt: on
+                };
+                x = next.x;
+                y = next.y;
+                z = next.z;
+            }
+            // z-axis
+            {
+                const next = .{
+                    // zig fmt: off
+                    .x =  x*@cos(b) + y*@sin(b) + 0,
+                    .y = -x*@sin(b) + y*@cos(b) + 0,
+                    .z =      0     +     0     + z,
+                    // zig fmt: on
+                };
+                x = next.x;
+                y = next.y;
+                z = next.z;
+            }
+            // zig fmt: on
+            // var x = cx * (@cos(b) * @cos(p) + @sin(a) * @sin(b) * @sin(p)) - (cy * @cos(a) * @cos(b));
+            // var y = cx * (@sin(b) * @cos(p) - @sin(a) * @cos(b) * @sin(p)) + (cy * @cos(a) * @cos(b));
+            // z = k2 + (@cos(a) * cx * @sin(p)) + (cy * @sin(a));
             x = (k1 * x) / (z + k2);
             y = (k1 * y) / (z + k2) / 2;
             if ((x + 30) < 0 or (y + 15) < 0) {
