@@ -29,6 +29,7 @@ pub fn main() !void {
     const end: f64 = @floatFromInt(std.time.nanoTimestamp());
     try raw.goto(0, 0);
     try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
+    try draw.torus(allocator, raw);
 
     var buffer: [128]u8 = undefined;
     var shift: f32 = 0.0;

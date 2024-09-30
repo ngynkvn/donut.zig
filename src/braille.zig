@@ -3,7 +3,7 @@ const tty = @import("tty.zig");
 
 // Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
-    const Key = struct { u32, u32 };
+    const Key = struct { i32, i32 };
     raw: tty.RawMode,
     buffer: std.AutoHashMap(Key, u8),
     pub fn init(allocator: std.mem.Allocator, raw: tty.RawMode) Plotter {
