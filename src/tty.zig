@@ -5,9 +5,10 @@ const system = posix.system;
 
 pub const TTY_HANDLE = "/dev/tty";
 
-/// VT100 escape sequences
-/// https://vt100.net/docs/vt100-ug/chapter3.html
-/// `man terminfo`, `man tput`, `man infocmp`
+/// vt100 / xterm escape sequences
+/// References used:
+///  - https://vt100.net/docs/vt100-ug/chapter3.html
+///  - `man terminfo`, `man tput`, `man infocmp`
 pub const E = struct {
     /// escape code prefix
     pub const ESC = "\x1b[";
@@ -18,6 +19,7 @@ pub const E = struct {
     pub const CLEAR_SCREEN = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
     pub const ENTER_ALT_SCREEN = ESC ++ "?1049h";
     pub const EXIT_ALT_SCREEN = ESC ++ "?1049l";
+    pub const REPORT_CURSOR_POS = ESC ++ "6n";
 };
 
 pub const RawMode = struct {
@@ -25,6 +27,7 @@ pub const RawMode = struct {
     tty: std.fs.File,
     width: u16,
     height: u16,
+    const CursorPos = struct { row: usize, col: usize };
 
     /// Enter "raw mode", returning a struct that wraps around the provided tty file
     /// Entering raw mode will automatically send the sequence for entering an
@@ -35,16 +38,26 @@ pub const RawMode = struct {
         const orig_termios = try posix.tcgetattr(tty.handle);
         var raw = orig_termios;
         // explanation here: https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
+        // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
         // TODO: check out the other flags later
         raw.lflag.ECHO = false; // Disable echo input
         raw.lflag.ICANON = false; // Read byte by byte
         raw.lflag.IEXTEN = false; // Disable <C-v>
-        raw.iflag.ICRNL = false; // Disable <C-m>
+        //raw.lflag.ISIG = false; // Disable <C-c> and <C-z>
         raw.iflag.IXON = false; // Disable <C-s> and <C-q>
+        raw.iflag.ICRNL = false; // Disable <C-m>
+        raw.iflag.BRKINT = false; // Break condition sends SIGINT
+        raw.iflag.INPCK = false; // Enable parity checking
+        raw.iflag.ISTRIP = false; // Strip 8th bit of input byte
         raw.oflag.OPOST = false; // Disable translating "\n" to "\r\n"
+        raw.cflag.CSIZE = .CS8;
 
         raw.cc[@intFromEnum(system.V.MIN)] = 0; // min bytes required for read
-        raw.cc[@intFromEnum(system.V.TIME)] = 2; // min time to wait for response, 100ms per unit
+        raw.cc[@intFromEnum(system.V.TIME)] = 1; // min time to wait for response, 100ms per unit
+        const rc = posix.errno(system.tcsetattr(tty.handle, .FLUSH, &raw));
+        if (rc != .SUCCESS) {
+            return error.CouldNotSetTermiosFlags;
+        }
 
         // IOCGWINSZ (io control get window size (?))
         // is a request signal for window size
@@ -72,7 +85,18 @@ pub const RawMode = struct {
     /// Move cursor to (x, y) (column, row)
     /// (0, 0) is defined as the bottom left corner of the terminal.
     pub fn goto(self: RawMode, x: usize, y: usize) !void {
-        try std.fmt.format(self.tty.writer(), E.GOTO, .{ self.height - y, x });
+        try self.write(E.GOTO, .{ self.height - y, x });
+    }
+    pub fn query(self: RawMode) !CursorPos {
+        _ = try self.tty.write(E.REPORT_CURSOR_POS);
+        // TODO: make this more durable
+        var buf: [32]u8 = undefined;
+        const n = try self.tty.read(&buf);
+        if (!std.mem.startsWith(u8, &buf, E.ESC)) return error.UnknownResponse;
+        const semi = std.mem.indexOf(u8, &buf, ";") orelse return error.ParseError;
+        const row = try std.fmt.parseUnsigned(usize, buf[2..semi], 10);
+        const col = try std.fmt.parseUnsigned(usize, buf[semi + 1 .. n - 1], 10);
+        return .{ .row = row, .col = col };
     }
     /// read input
     pub fn read(self: RawMode, buffer: []u8) !usize {
@@ -80,7 +104,7 @@ pub const RawMode = struct {
     }
     /// write to screen via fmt string
     pub fn write(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
-        try std.fmt.format(self.tty.writer(), fmt, args);
+        try self.tty.writer().print(fmt, args);
     }
 };
 ///The Braille unicode range is #x2800 - #x28FF, where each dot is one of 8 bits

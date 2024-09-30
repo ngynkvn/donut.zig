@@ -23,6 +23,30 @@ pub fn main() !void {
     }
 
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
+    const start: f64 = @floatFromInt(std.time.nanoTimestamp());
+    try draw_circle(raw);
+    try draw_coords(raw);
+
+    const end: f64 = @floatFromInt(std.time.nanoTimestamp());
+    try raw.goto(0, 0);
+    try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
+
+    try raw.goto(10, 10);
+    const pos = try raw.query();
+    try raw.write("position is: row={}, col={}", .{ pos.row, pos.col });
+
+    var buffer: [128]u8 = undefined;
+    while (raw.read(&buffer) catch null) |n| {
+        for (buffer[0..n]) |c| {
+            if (c == '\r') {
+                return;
+            }
+        }
+        _ = try raw.tty.write(buffer[0..n]);
+    }
+}
+
+fn draw_circle(raw: tty.RawMode) !void {
     { // INFO:
         //
         // To render a 3d object onto a 2d screen,
@@ -57,7 +81,6 @@ pub fn main() !void {
         // (R2 + R1cos(t), R1sin(t), 0) * [    0     1     0   ]
         //                                [ -sin(p)  0  cos(p) ]
     }
-
     //  2-D circle drawn in 3d space:
     //  - (x,y,z) = (R1, 0, 0) + (R2cos(t), R2sin(t), 0)
 
@@ -72,7 +95,6 @@ pub fn main() !void {
     const tstep = 0.05;
     var t: f32 = 0;
 
-    const start: f64 = @floatFromInt(std.time.nanoTimestamp());
     try raw.write(E.GOTO, .{ 0, 0 });
     try raw.write(E.CLEAR_SCREEN, .{});
     // draw circle
@@ -88,6 +110,9 @@ pub fn main() !void {
         try raw.goto(plotx, ploty);
         try raw.write("*", .{});
     }
+}
+
+fn draw_coords(raw: tty.RawMode) !void {
     for (0..raw.height - 1) |i| {
         try raw.goto(0, i);
         try raw.write("*", .{});
@@ -96,25 +121,6 @@ pub fn main() !void {
         try raw.goto(i, 0);
         try raw.write("-", .{});
     }
-    const end: f64 = @floatFromInt(std.time.nanoTimestamp());
-    try raw.goto(0, 0);
-    std.debug.print("{d} seconds.", .{(end - start) / std.time.ns_per_s});
-
-    var buffer: [128]u8 = undefined;
-    while (raw.read(&buffer) catch null) |n| {
-        for (buffer[0..n]) |c| {
-            if (c == '\n') {
-                return;
-            }
-            _ = try raw.tty.write(&.{c});
-        }
-    }
-}
-
-// Draw lines with coordinates
-fn draw_coords(_: tty.RawMode) !void {
-    // push cursor
-    // pop cursor
 }
 
 /// lerp does a linear interpolation
@@ -122,6 +128,7 @@ fn lerp(t: f32, x1: f32, x2: f32) f32 {
     return (x1 * t) + x2 * (1 - t);
 }
 
+// Tests
 test {
     std.testing.refAllDecls(@This());
 }
