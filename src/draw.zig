@@ -138,55 +138,14 @@ pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode, a: f32, b: f32) !vo
             // So first, a circle.
             const cx: f32 = r2 + r1 * @cos(t);
             const cy: f32 = (r1 * @sin(t));
-            const cz: f32 = 0;
             // Then apply the rotation to form the torus and movement
-
-            var x = cx;
-            var y = cy;
-            var z = cz;
-            // y-axis
-            {
-                const next = .{
-                    // zig fmt: off
-                    .x =  x*@cos(p) + 0 + z*@sin(p),
-                    .y =       0    + y +     0,
-                    .z = -x*@sin(p) + 0 + z*@cos(p),
-                    // zig fmt: on
-                };
-                x = next.x;
-                y = next.y;
-                z = next.z;
-            }
-            // x-axis
-            {
-                const next = .{
-                    // zig fmt: off
-                    .x = x +     0      +    0,
-                    .y = 0 + y*@cos(a) + z*@sin(a),
-                    .z = 0 - y*@sin(a) + z*@cos(a),
-                    // zig fmt: on
-                };
-                x = next.x;
-                y = next.y;
-                z = next.z;
-            }
-            // z-axis
-            {
-                const next = .{
-                    // zig fmt: off
-                    .x =  x*@cos(b) + y*@sin(b) + 0,
-                    .y = -x*@sin(b) + y*@cos(b) + 0,
-                    .z =      0     +     0     + z,
-                    // zig fmt: on
-                };
-                x = next.x;
-                y = next.y;
-                z = next.z;
-            }
+            // zig fmt: off
+            const sina: f32 = @sin(a); const sinb: f32 = @sin(b); const sinp: f32 = @sin(p);
+            const cosa: f32 = @cos(a); const cosb: f32 = @cos(b); const cosp: f32 = @cos(p);
             // zig fmt: on
-            // var x = cx * (@cos(b) * @cos(p) + @sin(a) * @sin(b) * @sin(p)) - (cy * @cos(a) * @cos(b));
-            // var y = cx * (@sin(b) * @cos(p) - @sin(a) * @cos(b) * @sin(p)) + (cy * @cos(a) * @cos(b));
-            // z = k2 + (@cos(a) * cx * @sin(p)) + (cy * @sin(a));
+            var x = cx * (cosb * cosp + sina * sinb * sinp) - (cy * cosa * sinb);
+            var y = cx * (cosp * sinb - cosb * sina * sinp) + (cy * cosa * cosb);
+            const z = cosa * cx * sinp + (cy * sina);
             x = (k1 * x) / (z + k2);
             y = (k1 * y) / (z + k2) / 2;
             if ((x + 30) < 0 or (y + 15) < 0) {
