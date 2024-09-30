@@ -91,7 +91,7 @@ pub fn sin(allocator: std.mem.Allocator, raw: tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
-pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
+pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode, a: f32, b: f32) !void {
     var plt = braille.Plotter.init(allocator, raw);
     defer plt.deinit();
     { // INFO:
@@ -130,51 +130,44 @@ pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
     const k2 = 5.0;
     const r1 = 1.0;
     const r2 = 3.0;
-    var a: f32 = 0.0;
-    var b: f32 = 0.0;
-    while (true) {
-        var t: f32 = 0.0;
-        a += 0.05;
-        b += 0.02;
-        plt.clear();
-        std.time.sleep(std.time.ns_per_s / 200);
-        try raw.write(E.CLEAR_SCREEN, .{});
-        while (t < 2 * std.math.pi) : (t += 0.3) {
-            var p: f32 = 0;
-            while (p < 2 * std.math.pi) : (p += 0.3) {
-                // So first, a circle.
-                const cx: f32 = r2 + r1 * @cos(t);
-                const cy: f32 = (r1 * @sin(t));
-                var z: f32 = 0.0;
-                // Then apply the rotation to form the torus and movement
-                var x = cx * (@cos(b) * @cos(p) + @sin(a) * @sin(b) * @sin(p)) - (cy * @cos(a) * @cos(b));
-                var y = cx * (@sin(b) * @cos(p) - @sin(a) * @cos(b) * @sin(p)) + (cy * @cos(a) * @cos(b));
-                z = k2 + (@cos(a) * cx * @sin(p)) + (cy * @sin(a));
-                x = (k1 * x) / (z + k2);
-                y = (k1 * y) / (z + k2) / 2;
-                if ((x + 30) < 0 or (y + 15) < 0) {
-                    try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
-                    try raw.write("WASGONNA CRASH: {d}x{d} | ({d:.2}, {d:.2}, {d:.2})", .{
-                        raw.width, raw.height,
-                        x,         y,
-                        z,
-                    });
-                    return;
-                }
-                const plotx: u16 = @intFromFloat(@trunc(x + 30));
-                const ploty: u16 = @intFromFloat(@trunc(y + 15));
+    var t: f32 = 0.0;
+    std.time.sleep(std.time.ns_per_s / 200);
+    try raw.write(E.CLEAR_SCREEN, .{});
+    while (t < 2 * std.math.pi) : (t += 0.3) {
+        var p: f32 = 0;
+        while (p < 2 * std.math.pi) : (p += 0.3) {
+            // So first, a circle.
+            const cx: f32 = r2 + r1 * @cos(t);
+            const cy: f32 = (r1 * @sin(t));
+            var z: f32 = 0.0;
+            // Then apply the rotation to form the torus and movement
+            var x = cx * (@cos(b) * @cos(p) + @sin(a) * @sin(b) * @sin(p)) - (cy * @cos(a) * @cos(b));
+            var y = cx * (@sin(b) * @cos(p) - @sin(a) * @cos(b) * @sin(p)) + (cy * @cos(a) * @cos(b));
+            z = k2 + (@cos(a) * cx * @sin(p)) + (cy * @sin(a));
+            x = (k1 * x) / (z + k2);
+            y = (k1 * y) / (z + k2) / 2;
+            if ((x + 30) < 0 or (y + 15) < 0) {
                 try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
-                try raw.write("{d}x{d} | t={d:.2}, p={d:.2} ({d:.2}, {d:.2}, {d:.2}) ({}, {})", .{
+                try raw.write("WASGONNA CRASH: {d}x{d} | ({d:.2}, {d:.2}, {d:.2})", .{
                     raw.width, raw.height,
-                    t,         p,
                     x,         y,
-                    z,         plotx,
-                    ploty,
+                    z,
                 });
-                const char = try plt.plot(x, y);
-                try raw.goto(plotx, ploty);
-                _ = try raw.tty.write(&char);
+                return;
             }
+            const plotx: u16 = @intFromFloat(@trunc(x + 30));
+            const ploty: u16 = @intFromFloat(@trunc(y + 15));
+            try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
+            try raw.write("{d}x{d} | t={d:.2}, p={d:.2} ({d:.2}, {d:.2}, {d:.2}) ({}, {})", .{
+                raw.width, raw.height,
+                t,         p,
+                x,         y,
+                z,         plotx,
+                ploty,
+            });
+            const char = try plt.plot(x, y);
+            try raw.goto(plotx, ploty);
+            _ = try raw.tty.write(&char);
         }
     }
 }

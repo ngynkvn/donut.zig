@@ -39,8 +39,9 @@ pub fn main() !void {
     try raw.goto(0, 0);
     try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
 
+    var a: f32 = 0.0;
+    var b: f32 = 0.0;
     var buffer: [128]u8 = undefined;
-    var shift: f32 = 0.0;
     while (raw.read(&buffer) catch null) |n| {
         if (std.mem.eql(u8, buffer[0..n], "\r")) {
             return;
@@ -49,8 +50,9 @@ pub fn main() !void {
             return;
         }
         _ = try raw.tty.write(buffer[0..n]);
-        try draw.sin(allocator, raw, shift);
-        shift += 0.2;
+        try draw.torus(allocator, raw, a, b);
+        a += 0.05;
+        b += 0.02;
     }
 }
 
