@@ -50,27 +50,27 @@ pub const RawMode = struct {
         var raw = orig_termios;
         // Some explanation of the flags can be found in the links above.
         // TODO: check out the other flags later
-        raw.lflag.ECHO = false; // Disable echo input
+        // zig fmt: off
+        raw.lflag.ECHO   = false; // Disable echo input
         raw.lflag.ICANON = false; // Read byte by byte
         raw.lflag.IEXTEN = false; // Disable <C-v>
-        raw.lflag.ISIG = false; // Disable <C-c> and <C-z>
-        raw.iflag.IXON = false; // Disable <C-s> and <C-q>
-        raw.iflag.ICRNL = false; // Disable <C-m>
+        raw.lflag.ISIG   = false; // Disable <C-c> and <C-z>
+        raw.iflag.IXON   = false; // Disable <C-s> and <C-q>
+        raw.iflag.ICRNL  = false; // Disable <C-m>
         raw.iflag.BRKINT = false; // Break condition sends SIGINT
-        raw.iflag.INPCK = false; // Enable parity checking
+        raw.iflag.INPCK  = false; // Enable parity checking
         raw.iflag.ISTRIP = false; // Strip 8th bit of input byte
-        raw.oflag.OPOST = false; // Disable translating "\n" to "\r\n"
-        raw.cflag.CSIZE = .CS8;
+        raw.oflag.OPOST  = false; // Disable translating "\n" to "\r\n"
+        raw.cflag.CSIZE  = .CS8;
 
-        raw.cc[@intFromEnum(system.V.MIN)] = 0; // min bytes required for read
+        raw.cc[@intFromEnum(system.V.MIN)]  = 0; // min bytes required for read
         raw.cc[@intFromEnum(system.V.TIME)] = 1; // min time to wait for response, 100ms per unit
-        const rc = posix.errno(system.tcsetattr(tty.handle, .FLUSH, &raw));
-        if (rc != .SUCCESS) {
-            return error.CouldNotSetTermiosFlags;
-        }
+        // zig fmt: on
 
-        // IOCGWINSZ (io control get window size (?))
-        // is a request signal for window size
+        const rc = system.tcsetattr(tty.handle, .FLUSH, &raw);
+        if (posix.errno(rc) != .SUCCESS) return error.CouldNotSetTermiosFlags;
+
+        // IOCGWINSZ (io control get window size (?)) is a request signal for window size
         var ws: posix.winsize = .{ .row = 0, .col = 0, .xpixel = 0, .ypixel = 0 };
         // Get the window size via ioctl(2) call to tty
         const result = system.ioctl(tty.handle, posix.T.IOCGWINSZ, &ws);
