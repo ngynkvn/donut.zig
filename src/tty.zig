@@ -93,6 +93,8 @@ pub const BRAILLE_TABLE: [256][3]u8 = ret: {
     const BRAILLE_START_CODEPOINT = 0x2800;
     var gen: [256][3]u8 = undefined;
     for (0..0x100) |value| {
+        // TODO: Checkout why this is needed
+        @setEvalBranchQuota(256 * 10);
         const bytes = std.unicode.utf8EncodeComptime(BRAILLE_START_CODEPOINT + value);
         gen[value] = bytes;
     }
@@ -104,11 +106,25 @@ pub const BRAILLE_TABLE: [256][3]u8 = ret: {
 ///    3 6 -> e f
 ///    7 8 -> g h
 // zig fmt: off
+
 const B = packed struct(u8) {
-    a: bool, b: bool,
-    c: bool, d: bool,
-    e: bool, f: bool,
-    g: bool, h: bool,
+    a: bool = false, c: bool = false,
+    e: bool = false, b: bool = false,
+    d: bool = false, f: bool = false,
+    g: bool = false, h: bool = false,
 };
 // zig fmt: on
-pub fn BraillePoint() [3]u8 {}
+pub fn BraillePoint(point: u8) [3]u8 {
+    return BRAILLE_TABLE[point];
+}
+
+test "braille accessor" {
+    {
+        const p = BraillePoint(0xff);
+        try std.testing.expectEqual(BRAILLE_TABLE[255], p);
+    }
+    {
+        const p = BraillePoint(@bitCast(B{ .a = true, .b = true }));
+        try std.testing.expectEqual(BRAILLE_TABLE[0b1001], p);
+    }
+}

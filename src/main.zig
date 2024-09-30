@@ -121,3 +121,7 @@ fn draw_coords(_: tty.RawMode) !void {
 fn lerp(t: f32, x1: f32, x2: f32) f32 {
     return (x1 * t) + x2 * (1 - t);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
