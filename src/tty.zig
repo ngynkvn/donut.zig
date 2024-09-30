@@ -9,24 +9,26 @@ pub const TTY_HANDLE = "/dev/tty";
 /// References used:
 ///  - https://vt100.net/docs/vt100-ug/chapter3.html
 ///  - `man terminfo`, `man tput`, `man infocmp`
+// zig fmt: off
 pub const E = struct {
     /// escape code prefix
     pub const ESC = "\x1b[";
     /// goto .{x, y}
-    pub const GOTO = ESC ++ "{d};{d}H";
-    pub const CLEAR_LINE = ESC ++ "K";
-    pub const CLEAR_DOWN = ESC ++ "0J";
-    pub const CLEAR_UP = ESC ++ "1J";
-    pub const CLEAR_SCREEN = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
-    pub const ENTER_ALT_SCREEN = ESC ++ "?1049h";
-    pub const EXIT_ALT_SCREEN = ESC ++ "?1049l";
+    pub const GOTO              = ESC ++ "{d};{d}H";
+    pub const CLEAR_LINE        = ESC ++ "K";
+    pub const CLEAR_DOWN        = ESC ++ "0J";
+    pub const CLEAR_UP          = ESC ++ "1J";
+    pub const CLEAR_SCREEN      = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
+    pub const ENTER_ALT_SCREEN  = ESC ++ "?1049h";
+    pub const EXIT_ALT_SCREEN   = ESC ++ "?1049l";
     pub const REPORT_CURSOR_POS = ESC ++ "6n";
-    pub const CURSOR_INVISIBLE = ESC ++ "?25l";
-    pub const CURSOR_VISIBLE = ESC ++ "?12;25h";
+    pub const CURSOR_INVISIBLE  = ESC ++ "?25l";
+    pub const CURSOR_VISIBLE    = ESC ++ "?12;25h";
     /// setaf .{color}
-    pub const SET_ANSI_FG = ESC ++ "3{d}m";
-    pub const RESET_COLORS = ESC ++ "m";
+    pub const SET_ANSI_FG       = ESC ++ "3{d}m";
+    pub const RESET_COLORS      = ESC ++ "m";
 };
+// zig fmt: on
 
 pub const RawMode = struct {
     orig_termios: posix.termios,
@@ -40,11 +42,13 @@ pub const RawMode = struct {
     /// alternate screen (smcup) and hiding the cursor.
     /// Use `defer RawMode.restore()` to reset on exit.
     /// Deferral will set the sequence for exiting alt screen (rmcup)
+    ///
+    /// Explanation here: https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
+    /// https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
     pub fn enable(tty: std.fs.File) !RawMode {
         const orig_termios = try posix.tcgetattr(tty.handle);
         var raw = orig_termios;
-        // explanation here: https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
-        // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
+        // Some explanation of the flags can be found in the links above.
         // TODO: check out the other flags later
         raw.lflag.ECHO = false; // Disable echo input
         raw.lflag.ICANON = false; // Read byte by byte
