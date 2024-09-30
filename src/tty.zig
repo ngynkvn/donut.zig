@@ -14,6 +14,7 @@ pub const E = struct {
     pub const ESC = "\x1b[";
     /// goto .{x, y}
     pub const GOTO = ESC ++ "{d};{d}H";
+    pub const CLEAR_LINE = ESC ++ "K";
     pub const CLEAR_DOWN = ESC ++ "0J";
     pub const CLEAR_UP = ESC ++ "1J";
     pub const CLEAR_SCREEN = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
@@ -124,20 +125,19 @@ pub const BRAILLE_TABLE: [256][3]u8 = ret: {
     }
     break :ret gen;
 };
-/// Braille accessor
-///    1 4 -> a b
-///    2 5 -> c d
-///    3 6 -> e f
-///    7 8 -> g h
-// zig fmt: off
 
-const B = packed struct(u8) {
-    a: bool = false, c: bool = false,
-    e: bool = false, b: bool = false,
-    d: bool = false, f: bool = false,
-    g: bool = false, h: bool = false,
-};
-// zig fmt: on
+///Set a u8 representing a braille code as a bitmap
+///    0 3 -> 03 13 | 000 011
+///    1 4 -> 02 12 | 001 100
+///    2 5 -> 01 11 | 010 101
+///    6 7 -> 00 10 | 110 111
+pub fn set_bbit(braille_bit: u8, x: u1, y: u2) u8 {
+    // TODO: check for better way to do this
+    var pos: u3 = ((3 - y) + @as(u3, x) * 3);
+    if (y == 0) pos = 6 + @as(u3, x);
+    return braille_bit | (@as(u8, 1) << @truncate(pos));
+}
+
 pub fn BraillePoint(point: u8) [3]u8 {
     return BRAILLE_TABLE[point];
 }
@@ -148,7 +148,17 @@ test "braille accessor" {
         try std.testing.expectEqual(BRAILLE_TABLE[255], p);
     }
     {
-        const p = BraillePoint(@bitCast(B{ .a = true, .b = true }));
-        try std.testing.expectEqual(BRAILLE_TABLE[0b1001], p);
+        try std.testing.expectEqual(
+            0b0100_0000,
+            set_bbit(0, 0, 0),
+        );
+        try std.testing.expectEqual(
+            0b1000_0000,
+            set_bbit(0, 1, 0),
+        );
+        try std.testing.expectEqual(
+            0b0000_1000,
+            set_bbit(0, 1, 3),
+        );
     }
 }

@@ -31,10 +31,6 @@ pub fn main() !void {
     try raw.goto(0, 0);
     try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
 
-    try raw.goto(10, 10);
-    const pos = try raw.query();
-    try raw.write("position is: row={}, col={}", .{ pos.row, pos.col });
-
     var buffer: [128]u8 = undefined;
     while (raw.read(&buffer) catch null) |n| {
         for (buffer[0..n]) |c| {
@@ -84,31 +80,52 @@ fn draw_circle(raw: tty.RawMode) !void {
     //  2-D circle drawn in 3d space:
     //  - (x,y,z) = (R1, 0, 0) + (R2cos(t), R2sin(t), 0)
 
-    // inner radius / distance from origin
-    const r1 = 100.0;
-
     // radius of circle
-    const r2 = 70.0;
-    const z = 4.0;
+    const r2 = 20.0;
 
     const maxt = 2 * std.math.pi;
-    const tstep = 0.05;
+    const tstep = 0.02;
     var t: f32 = 0;
 
     try raw.write(E.GOTO, .{ 0, 0 });
     try raw.write(E.CLEAR_SCREEN, .{});
     // draw circle
+    var prev_plotx: u16 = 0;
+    var prev_ploty: u16 = 0;
+    var bbit: u8 = 0;
     while (t < maxt + 0.1) : (t += tstep) {
-        const x = (r1 + r2 * @cos(t)) / z;
-        const y = (r1 + r2 * @sin(t)) / (z * 2);
-        const xx: u16 = @intFromFloat(@round(x));
-        const yy: u16 = @intFromFloat(@round(y));
-        const plotx = xx;
-        const ploty = yy;
+        const x = (50 + r2 * @cos(t));
+        const y = (30 + r2 * @sin(t)) / 2;
+        const plotx: u16 = @intFromFloat(@trunc(x));
+        const ploty: u16 = @intFromFloat(@trunc(y));
+
+        if (prev_plotx != plotx or prev_ploty != ploty) {
+            prev_plotx = plotx;
+            prev_ploty = ploty;
+            bbit = 0;
+        }
+
+        const subx = @mod(x, 1);
+        const bx = @trunc(subx * 2);
+        const suby = @mod(y, 1);
+        // Convert 0.0 - 1.0 to 0 - 3
+        const by = @trunc(suby * 4);
+        bbit = tty.set_bbit(bbit, @intFromFloat(bx), @intFromFloat(by));
+
         try raw.write(E.GOTO, .{ 0, 0 });
-        try raw.write("{d}x{d} ({}, {})", .{ raw.width, raw.height, plotx, ploty });
+        try raw.write(E.CLEAR_LINE, .{});
+        // zig fmt: off
+        try raw.write("{d}x{d}| ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1}) {s}", .{
+            raw.width, raw.height,
+            x, y,
+            plotx, bx, ploty, by,
+            tty.BraillePoint(bbit),
+        });
+        // zig fmt: on
         try raw.goto(plotx, ploty);
-        try raw.write("*", .{});
+        try raw.write("{s}", .{tty.BraillePoint(bbit)});
+        // Slight delay to see drawing!
+        std.time.sleep(std.time.ns_per_ms);
     }
 }
 
