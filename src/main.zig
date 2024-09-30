@@ -9,8 +9,6 @@ const E = tty.E;
 var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
 const allocator = gpa.allocator();
 
-/// We will draw a donut!
-/// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn main() !void {
     const ttyh = try std.fs.openFileAbsolute(tty.TTY_HANDLE, .{ .mode = .read_write });
     defer ttyh.close();
@@ -38,7 +36,7 @@ pub fn main() !void {
         if (std.mem.eql(u8, buffer[0..n], "\r")) {
             return;
         }
-        if (std.mem.eql(u8, buffer[0..n], "\x03")) {
+        if (std.mem.eql(u8, buffer[0..n], "\x03")) { // <C-c>
             return;
         }
         _ = try raw.tty.write(buffer[0..n]);

@@ -95,6 +95,9 @@ pub fn sin(allocator: std.mem.Allocator, raw: tty.RawMode, shift: f32) !void {
     try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
 }
 
+/// TODO:
+/// We will draw a donut!
+/// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn torus(_: tty.RawMode) !void {
     { // INFO:
         //

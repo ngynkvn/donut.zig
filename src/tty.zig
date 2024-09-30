@@ -23,7 +23,8 @@ pub const E = struct {
     pub const REPORT_CURSOR_POS = ESC ++ "6n";
     pub const CURSOR_INVISIBLE = ESC ++ "?25l";
     pub const CURSOR_VISIBLE = ESC ++ "?12;25h";
-    pub const SET_ANSI_FG = ESC ++ "3{}m";
+    /// setaf .{color}
+    pub const SET_ANSI_FG = ESC ++ "3{d}m";
     pub const RESET_COLORS = ESC ++ "m";
 };
 
