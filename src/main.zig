@@ -8,8 +8,6 @@ const E = tty.E;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
-const luminence = ".,-~:;=!*#$@";
-
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn main() !void {
@@ -18,7 +16,7 @@ pub fn main() !void {
 
     const raw = try tty.RawMode.enable(ttyh);
     defer {
-        const errno = raw.restore();
+        const errno = raw.restore() catch @panic("failed to write :(");
         if (errno != .SUCCESS) {
             @panic("no good");
         }
@@ -106,9 +104,6 @@ pub fn main() !void {
     while (raw.read(&buffer) catch null) |n| {
         for (buffer[0..n]) |c| {
             if (c == '\n') {
-                std.debug.print("{s}\n", .{tty.BRAILLE});
-                std.debug.print("{s}\n", .{tty.BRAILLE});
-                std.debug.print("{s}\n", .{tty.BRAILLE});
                 return;
             }
             _ = try raw.tty.write(&.{c});

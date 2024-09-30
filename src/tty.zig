@@ -7,6 +7,7 @@ pub const TTY_HANDLE = "/dev/tty";
 
 /// VT100 escape sequences
 /// https://vt100.net/docs/vt100-ug/chapter3.html
+/// `man terminfo`, `man tput`, `man infocmp`
 pub const E = struct {
     /// escape code prefix
     pub const ESC = "\x1b[";
@@ -15,7 +16,8 @@ pub const E = struct {
     pub const CLEAR_DOWN = ESC ++ "0J";
     pub const CLEAR_UP = ESC ++ "1J";
     pub const CLEAR_SCREEN = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
-    pub const ALT_SCREEN = ESC ++ "";
+    pub const ENTER_ALT_SCREEN = ESC ++ "?1049h";
+    pub const EXIT_ALT_SCREEN = ESC ++ "?1049l";
 };
 
 pub const RawMode = struct {
@@ -25,7 +27,10 @@ pub const RawMode = struct {
     height: u16,
 
     /// Enter "raw mode", returning a struct that wraps around the provided tty file
+    /// Entering raw mode will automatically send the sequence for entering an
+    /// alternate screen (smcup)
     /// Use `defer RawMode.restore()` to reset on exit.
+    /// Deferral will set the sequence for exiting alt screen (rmcup)
     pub fn enable(tty: std.fs.File) !RawMode {
         const orig_termios = try posix.tcgetattr(tty.handle);
         var raw = orig_termios;
@@ -51,6 +56,7 @@ pub const RawMode = struct {
         const width = ws.col;
         const height = ws.row;
         std.log.debug("ws is {}x{}\n", .{ width, height });
+        _ = try tty.write(E.ENTER_ALT_SCREEN);
         return .{
             .orig_termios = orig_termios,
             .tty = tty,
@@ -58,7 +64,8 @@ pub const RawMode = struct {
             .height = height,
         };
     }
-    pub fn restore(self: RawMode) posix.E {
+    pub fn restore(self: RawMode) !posix.E {
+        _ = try self.tty.write(E.EXIT_ALT_SCREEN);
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
     }
@@ -82,7 +89,26 @@ pub const RawMode = struct {
 ///    2 5
 ///    3 6
 ///    7 8
-pub const BRAILLE = "⠀⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿";
-comptime {
-    @compileLog();
-}
+pub const BRAILLE_TABLE: [256][3]u8 = ret: {
+    const BRAILLE_START_CODEPOINT = 0x2800;
+    var gen: [256][3]u8 = undefined;
+    for (0..0x100) |value| {
+        const bytes = std.unicode.utf8EncodeComptime(BRAILLE_START_CODEPOINT + value);
+        gen[value] = bytes;
+    }
+    break :ret gen;
+};
+/// Braille accessor
+///    1 4 -> a b
+///    2 5 -> c d
+///    3 6 -> e f
+///    7 8 -> g h
+// zig fmt: off
+const B = packed struct(u8) {
+    a: bool, b: bool,
+    c: bool, d: bool,
+    e: bool, f: bool,
+    g: bool, h: bool,
+};
+// zig fmt: on
+pub fn BraillePoint() [3]u8 {}
