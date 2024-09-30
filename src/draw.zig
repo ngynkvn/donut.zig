@@ -1,6 +1,7 @@
 /// A set of drawing routines to terminal
 const std = @import("std");
 const tty = @import("tty.zig");
+const braille = @import("braille.zig");
 const E = tty.E;
 
 /// Drawing a circle in 2d can be defined by two variables:
@@ -23,28 +24,20 @@ pub fn circle(raw: tty.RawMode) !void {
     try raw.write(E.GOTO, .{ 0, 0 });
     try raw.write(E.CLEAR_SCREEN, .{});
     // draw circle
-    var prev_plotx: u16 = 0;
-    var prev_ploty: u16 = 0;
-    var bbit: u8 = 0;
+    var plt = braille.Plotter.init(std.heap.page_allocator, raw);
     while (t < maxt + 0.1) : (t += tstep) {
         const x = (ox + r * @cos(t));
         const y = (oy + r * @sin(t)) / 2;
         const plotx: u16 = @intFromFloat(@trunc(x));
         const ploty: u16 = @intFromFloat(@trunc(y));
 
-        if (prev_plotx != plotx or prev_ploty != ploty) {
-            prev_plotx = plotx;
-            prev_ploty = ploty;
-            bbit = 0;
-        }
-
         const subx = @mod(x, 1);
         const bx = @trunc(subx * 2);
         const suby = @mod(y, 1);
         // Convert 0.0 - 1.0 to 0 - 3
         const by = @trunc(suby * 4);
-        bbit = tty.set_bbit(bbit, @intFromFloat(bx), @intFromFloat(by));
 
+        const bbit = try plt.plot(x, y);
         try raw.write(E.GOTO, .{ 0, 0 });
         try raw.write(E.CLEAR_LINE, .{});
         // zig fmt: off
@@ -52,24 +45,28 @@ pub fn circle(raw: tty.RawMode) !void {
             raw.width, raw.height,
             x, y,
             plotx, bx, ploty, by,
-            tty.BraillePoint(bbit),
+            bbit,
         });
         // zig fmt: on
         try raw.goto(plotx, ploty);
-        try raw.write("{s}", .{tty.BraillePoint(bbit)});
+        try raw.write("{s}", .{bbit});
         // Slight delay to see drawing!
         std.time.sleep(std.time.ns_per_ms);
     }
 }
 
 pub fn coords(raw: tty.RawMode) !void {
+    var plt = braille.Plotter.init(std.heap.page_allocator, raw);
     for (0..raw.height - 1) |i| {
         try raw.goto(0, i);
-        try raw.write("*", .{});
+        const char = try plt.plot(0, @floatFromInt(i));
+        try raw.write("{s}", .{char});
     }
     for (0..raw.width) |i| {
         try raw.goto(i, 0);
-        try raw.write("-", .{});
+        _ = try plt.plot(@floatFromInt(i), 0);
+        const char = try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
+        try raw.write("{s}", .{char});
     }
 }
 

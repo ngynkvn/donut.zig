@@ -6,7 +6,7 @@ const system = std.posix.system;
 const tty = @import("tty.zig");
 const draw = @import("draw.zig");
 const E = tty.E;
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
 const allocator = gpa.allocator();
 
 /// We will draw a donut!
