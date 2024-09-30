@@ -9,6 +9,12 @@ pub const Plotter = struct {
     pub fn init(allocator: std.mem.Allocator, raw: tty.RawMode) Plotter {
         return Plotter{ .raw = raw, .buffer = std.AutoHashMap(Key, u8).init(allocator) };
     }
+    pub fn deinit(self: *Plotter) void {
+        self.buffer.deinit();
+    }
+    pub fn clear(self: *Plotter) void {
+        self.buffer.clearRetainingCapacity();
+    }
     pub fn plot(self: *Plotter, x: f32, y: f32) ![3]u8 {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);

@@ -21,6 +21,10 @@ pub const E = struct {
     pub const ENTER_ALT_SCREEN = ESC ++ "?1049h";
     pub const EXIT_ALT_SCREEN = ESC ++ "?1049l";
     pub const REPORT_CURSOR_POS = ESC ++ "6n";
+    pub const CURSOR_INVISIBLE = ESC ++ "?25l";
+    pub const CURSOR_VISIBLE = ESC ++ "?12;25h";
+    pub const SET_ANSI_FG = ESC ++ "3{}m";
+    pub const RESET_COLORS = ESC ++ "m";
 };
 
 pub const RawMode = struct {
@@ -32,7 +36,7 @@ pub const RawMode = struct {
 
     /// Enter "raw mode", returning a struct that wraps around the provided tty file
     /// Entering raw mode will automatically send the sequence for entering an
-    /// alternate screen (smcup)
+    /// alternate screen (smcup) and hiding the cursor.
     /// Use `defer RawMode.restore()` to reset on exit.
     /// Deferral will set the sequence for exiting alt screen (rmcup)
     pub fn enable(tty: std.fs.File) !RawMode {
@@ -70,7 +74,7 @@ pub const RawMode = struct {
         const width = ws.col;
         const height = ws.row;
         std.log.debug("ws is {}x{}\n", .{ width, height });
-        _ = try tty.write(E.ENTER_ALT_SCREEN);
+        _ = try tty.write(E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE);
         return .{
             .orig_termios = orig_termios,
             .tty = tty,
@@ -79,7 +83,7 @@ pub const RawMode = struct {
         };
     }
     pub fn restore(self: RawMode) !posix.E {
-        _ = try self.tty.write(E.EXIT_ALT_SCREEN);
+        _ = try self.tty.write(E.EXIT_ALT_SCREEN ++ E.CURSOR_VISIBLE);
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
     }

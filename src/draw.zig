@@ -10,7 +10,9 @@ const E = tty.E;
 ///
 /// Then, stepping from t=[0, 2pi] the circle is then defined by
 ///     c = origin + (r * cos(t), r * sin(t))
-pub fn circle(raw: tty.RawMode) !void {
+pub fn circle(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
+    var plt = braille.Plotter.init(allocator, raw);
+    defer plt.deinit();
     // radius of circle
     const r = 20.0;
     // origin
@@ -24,7 +26,6 @@ pub fn circle(raw: tty.RawMode) !void {
     try raw.write(E.GOTO, .{ 0, 0 });
     try raw.write(E.CLEAR_SCREEN, .{});
     // draw circle
-    var plt = braille.Plotter.init(std.heap.page_allocator, raw);
     while (t < maxt + 0.1) : (t += tstep) {
         const x = (ox + r * @cos(t));
         const y = (oy + r * @sin(t)) / 2;
@@ -41,7 +42,7 @@ pub fn circle(raw: tty.RawMode) !void {
         try raw.write(E.GOTO, .{ 0, 0 });
         try raw.write(E.CLEAR_LINE, .{});
         // zig fmt: off
-        try raw.write("{d}x{d}| ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1}) {s}", .{
+        try raw.write("{d}x{d} | ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1}) {s}", .{
             raw.width, raw.height,
             x, y,
             plotx, bx, ploty, by,
@@ -55,8 +56,9 @@ pub fn circle(raw: tty.RawMode) !void {
     }
 }
 
-pub fn coords(raw: tty.RawMode) !void {
-    var plt = braille.Plotter.init(std.heap.page_allocator, raw);
+pub fn coords(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
+    var plt = braille.Plotter.init(allocator, raw);
+    defer plt.deinit();
     for (0..raw.height - 1) |i| {
         try raw.goto(0, i);
         const char = try plt.plot(0, @floatFromInt(i));
@@ -68,6 +70,29 @@ pub fn coords(raw: tty.RawMode) !void {
         const char = try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
         try raw.write("{s}", .{char});
     }
+}
+
+pub fn sin(allocator: std.mem.Allocator, raw: tty.RawMode, shift: f32) !void {
+    var plt = braille.Plotter.init(allocator, raw);
+    defer plt.deinit();
+    const start: f64 = @floatFromInt(std.time.nanoTimestamp());
+    var x: f32 = 0.0;
+    // Clear the lines before rendering
+    for (8..12) |y| {
+        try raw.goto(0, y);
+        try raw.write(E.CLEAR_LINE, .{});
+    }
+    try raw.write(E.SET_ANSI_FG, .{2});
+    while (x < @as(f32, @floatFromInt(raw.width))) : (x += 0.1) {
+        const y = @sin(x + shift) * 2 + 10.0;
+        const c = try plt.plot(x, y);
+        try raw.goto(@intFromFloat(x), @intFromFloat(y));
+        try raw.write("{s}", .{c});
+    }
+
+    const end: f64 = @floatFromInt(std.time.nanoTimestamp());
+    try raw.goto(24, 0);
+    try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
 }
 
 pub fn torus(_: tty.RawMode) !void {

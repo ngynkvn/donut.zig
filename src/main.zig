@@ -26,14 +26,14 @@ pub fn main() !void {
 
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
     const start: f64 = @floatFromInt(std.time.nanoTimestamp());
-    try draw.circle(raw);
-    try draw.coords(raw);
-
+    try draw.circle(allocator, raw);
+    try draw.coords(allocator, raw);
     const end: f64 = @floatFromInt(std.time.nanoTimestamp());
     try raw.goto(0, 0);
     try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
 
     var buffer: [128]u8 = undefined;
+    var shift: f32 = 0.0;
     while (raw.read(&buffer) catch null) |n| {
         for (buffer[0..n]) |c| {
             if (c == '\r') {
@@ -41,6 +41,8 @@ pub fn main() !void {
             }
         }
         _ = try raw.tty.write(buffer[0..n]);
+        try draw.sin(allocator, raw, shift);
+        shift += 0.2;
     }
 }
 
