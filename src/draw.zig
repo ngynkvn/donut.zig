@@ -148,7 +148,7 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             const plotx = x + 30;
             const ploty = y + 15;
             try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
-            try raw.write("{d}x{d} | t={d:.2}, p={d:.2} ({d:.2}, {d:.2}, {d:.2}) ({}, {})", .{
+            try raw.write("{d}x{d} | t={d:0.2}, p={d:0.2} ({d:0.2}, {d:0.2}, {d:0.2}) ({}, {})", .{
                 raw.width, raw.height,
                 t,         p,
                 x,         y,
