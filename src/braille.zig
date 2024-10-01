@@ -33,9 +33,12 @@ pub const Plotter = struct {
             result.value_ptr.* = 0;
         }
         result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
-        try self.raw.write(tty.E.GOTO ++ "{s}", .{ self.raw.height - @as(u16, @intFromFloat(y)), @as(u16, @intFromFloat(@trunc(x))), BraillePoint(result.value_ptr.*) });
+        const plotx: u16 = @intFromFloat(@trunc(x));
+        const ploty: u16 = @intFromFloat(@trunc(y));
+        try self.raw.write(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
     }
 };
+
 ///The Braille unicode range is #x2800 - #x28FF, where each dot is one of 8 bits
 ///    Because Braille was originally only 6 dots, the order of bits is:
 ///    1 4
