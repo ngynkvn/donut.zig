@@ -46,7 +46,7 @@ pub fn main() !void {
     var a: f32 = 0.0;
     var b: f32 = 0.0;
     var buffer: [128]u8 = undefined;
-    try raw.write(E.SET_ANSI_FG, .{2});
+    try raw.write(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{2});
     {
         while (raw.read(&buffer) catch null) |n| {
             const start = try std.time.Instant.now();

@@ -13,6 +13,7 @@ pub const TTY_HANDLE = "/dev/tty";
 pub const E = struct {
     /// escape code prefix
     pub const ESC = "\x1b[";
+    pub const HOME              = ESC ++ "H";
     /// goto .{y, x}
     pub const GOTO              = ESC ++ "{d};{d}H";
     pub const CLEAR_LINE        = ESC ++ "K";
@@ -26,6 +27,8 @@ pub const E = struct {
     pub const CURSOR_VISIBLE    = ESC ++ "?12;25h";
     /// setaf .{color}
     pub const SET_ANSI_FG       = ESC ++ "3{d}m";
+    /// setab .{color}
+    pub const SET_ANSI_BG       = ESC ++ "4{d}m";
     pub const RESET_COLORS      = ESC ++ "m";
 };
 // zig fmt: on

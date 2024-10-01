@@ -139,21 +139,18 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             if ((x + 30) < 0 or (y + 15) < 0) {
                 try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
                 try raw.write("WASGONNA CRASH: {d}x{d} | ({d:.2}, {d:.2}, {d:.2})", .{
-                    raw.width, raw.height,
-                    x,         y,
-                    z,
+                    raw.width, raw.height, x, y, z,
                 });
                 return;
             }
             const plotx = x + 30;
             const ploty = y + 15;
-            try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
-            try raw.write("{d}x{d} | t={d:0.2}, p={d:0.2} ({d:0.2}, {d:0.2}, {d:0.2}) ({}, {})", .{
-                raw.width, raw.height,
-                t,         p,
-                x,         y,
-                z,         plotx,
-                ploty,
+            try raw.write(E.HOME, .{});
+            try raw.write( //
+                "{d}x{d} | t={d:04.2}, p={d:04.2}\r\n" ++
+                "({d:04.2}, {d:04.2}, {d:04.2})\r\n" ++
+                "({d:04.2}, {d:04.2})", .{
+                raw.width, raw.height, t, p, x, y, z, plotx, ploty,
             });
             try plt.plot(plotx, ploty);
         }
