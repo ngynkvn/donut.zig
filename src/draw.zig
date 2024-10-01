@@ -2,6 +2,7 @@
 const std = @import("std");
 const tty = @import("tty.zig");
 const braille = @import("braille.zig");
+const plotter = @import("plotter.zig");
 const E = tty.E;
 
 /// Drawing a circle in 2d can be defined by two variables:
@@ -10,7 +11,7 @@ const E = tty.E;
 ///
 /// Then, stepping from t=[0, 2pi] the circle is then defined by
 ///     c = origin + (r * cos(t), r * sin(t))
-pub fn circle(plt: *braille.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
+pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
     const tmax = 2 * std.math.pi;
     const tstep = 0.02;
     var t: f32 = 0;
@@ -41,7 +42,7 @@ pub fn circle(plt: *braille.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32)
     }
 }
 
-pub fn coords(plt: *braille.Plotter, raw: tty.RawMode) !void {
+pub fn coords(plt: *plotter.Plotter, raw: tty.RawMode) !void {
     for (0..raw.height - 1) |i| {
         try raw.goto(0, i);
         try plt.plot(0, @floatFromInt(i));
@@ -53,7 +54,7 @@ pub fn coords(plt: *braille.Plotter, raw: tty.RawMode) !void {
     }
 }
 
-pub fn sin(plt: *braille.Plotter, raw: tty.RawMode, shift: f32) !void {
+pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
     const start = try std.time.Instant.now();
     var x: f32 = 0.0;
     // Clear the lines before rendering
@@ -77,8 +78,10 @@ pub fn sin(plt: *braille.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
-pub fn torus(plt: *braille.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
+pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
+    try raw.goto(0, raw.height - 3);
+    try raw.write(E.CLEAR_DOWN, .{});
 
     { // INFO:
         //
@@ -117,8 +120,7 @@ pub fn torus(plt: *braille.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     const r1 = 1.0;
     const r2 = 3.0;
     var t: f32 = 0.0;
-    try raw.write(E.CLEAR_SCREEN, .{});
-    while (t < 2 * std.math.pi) : (t += 0.3) {
+    while (t < 2 * std.math.pi) : (t += 0.2) {
         var p: f32 = 0;
         while (p < 2 * std.math.pi) : (p += 0.2) {
             // So first, a circle.
@@ -171,7 +173,7 @@ pub const Point = struct {
     }
 };
 
-pub fn curve(plt: *braille.Plotter, p0: Point, p1: Point, p2: Point) !void {
+pub fn curve(plt: *plotter.Plotter, p0: Point, p1: Point, p2: Point) !void {
     var t: f32 = 0;
     while (t < 1.0) : (t += 0.01) {
         const a = p0.lerp(t, p1);

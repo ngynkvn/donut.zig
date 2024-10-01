@@ -23,7 +23,7 @@ pub fn main() !void {
             @panic("no good");
         }
     }
-    var plot = braille.Plotter.init(allocator, raw);
+    var plot = plotter.Plotter{ .braille = @constCast(&braille.Plotter.init(allocator, raw)) };
     defer plot.deinit();
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
     {
@@ -58,7 +58,7 @@ pub fn main() !void {
             }
             _ = try raw.tty.write(buffer[0..n]);
             try draw.torus(&plot, raw, a, b);
-            try raw.goto(0, 1);
+            try raw.goto(0, raw.height - 2);
             const elapsed: f32 = @floatFromInt((try std.time.Instant.now()).since(start));
             try raw.write("{d} ms", .{elapsed / std.time.ns_per_ms});
             a += 0.05;
