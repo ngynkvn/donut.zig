@@ -134,13 +134,13 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
         // => (x*cos(p)-(z*sin(p)), y, x*sin(p)+z*cos(p))
         // Then we just repeat this for the other [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations)
     }
-    const k1 = 7.0;
-    const k2 = 6.0;
+    const k1 = 8.0;
+    const k2 = 5.0;
     const r1 = 1.0;
     const r2 = 3.0;
-    const tstep = 0.2;
+    const tstep = 0.3;
     const pstep = 0.2;
-    const tn = @round((2 * std.math.pi) / tstep);
+    const tn = @trunc((2 * std.math.pi) / tstep);
     const Trig = struct { sin: f32, cos: f32 };
     const tvals: [tn]Trig = comptime ret: {
         var gen: [tn]Trig = undefined;
@@ -150,7 +150,7 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
         }
         break :ret gen;
     };
-    const pn = @round((2 * std.math.pi) / pstep);
+    const pn = @trunc((2 * std.math.pi) / pstep);
     const pvals: [pn]Trig = comptime ret: {
         var gen: [pn]Trig = undefined;
         for (0..pn) |i| {
@@ -162,7 +162,8 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
     // zig fmt: off
     const sina: f32 = @sin(a); const sinb: f32 = @sin(b);
     const cosa: f32 = @cos(a); const cosb: f32 = @cos(b);
-    const sasb = sina * sinb; const sacb = sina*cosb; const cacb = cosa*cosb;
+    const sasb = sina * sinb; const casb = cosa*sinb; 
+    const sacb = sina * cosb; const cacb = cosa*cosb;
     // zig fmt: on
     for (tvals, 0..) |tlut, t| {
         for (pvals, 0..) |plut, p| {
@@ -171,7 +172,7 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
             const cy: f32 = (r1 * tlut.sin);
             // Then apply the rotation to form the torus and movement
             const sinp: f32 = plut.sin; const cosp: f32 = plut.cos;
-            var x = cx * (cosb * cosp + sasb * sinp) - (cy * sacb);
+            var x = cx * (cosb * cosp + sasb * sinp) - (cy * casb);
             var y = cx * (cosp * sinb - sacb * sinp) + (cy * cacb);
             const z = cosa * cx * sinp + (cy * sina);
             x = (k1 * 2 * x) / (z + k2);
