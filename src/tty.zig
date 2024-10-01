@@ -13,7 +13,7 @@ pub const TTY_HANDLE = "/dev/tty";
 pub const E = struct {
     /// escape code prefix
     pub const ESC = "\x1b[";
-    /// goto .{x, y}
+    /// goto .{y, x}
     pub const GOTO              = ESC ++ "{d};{d}H";
     pub const CLEAR_LINE        = ESC ++ "K";
     pub const CLEAR_DOWN        = ESC ++ "0J";

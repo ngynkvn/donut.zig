@@ -37,7 +37,7 @@ pub fn circle(plt: *braille.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32)
             ploty,     by,
         });
         // Slight delay to see drawing!
-        // std.time.sleep(std.time.ns_per_ms);
+        //std.time.sleep(std.time.ns_per_ms);
     }
 }
 
@@ -143,8 +143,8 @@ pub fn torus(plt: *braille.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
                 });
                 return;
             }
-            const plotx: u16 = @intFromFloat(@trunc(x + 30));
-            const ploty: u16 = @intFromFloat(@trunc(y + 15));
+            const plotx = x + 30;
+            const ploty = y + 15;
             try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
             try raw.write("{d}x{d} | t={d:.2}, p={d:.2} ({d:.2}, {d:.2}, {d:.2}) ({}, {})", .{
                 raw.width, raw.height,
@@ -153,7 +153,7 @@ pub fn torus(plt: *braille.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
                 z,         plotx,
                 ploty,
             });
-            try plt.plot(x, y);
+            try plt.plot(plotx, ploty);
         }
     }
 }
