@@ -80,7 +80,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
-    try raw.goto(0, raw.height - 3);
+    try raw.goto(0, raw.height - 10);
     try raw.write(E.CLEAR_DOWN, .{});
 
     { // INFO:
@@ -147,9 +147,9 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             const ploty = y + 15;
             try raw.write(E.HOME, .{});
             try raw.write( //
-                "{d}x{d} | t={d:04.2}, p={d:04.2}\r\n" ++
-                "({d:04.2}, {d:04.2}, {d:04.2})\r\n" ++
-                "({d:04.2}, {d:04.2})", .{
+                "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
+                "({d:>6.2},{d:>6.2},{d:>6.2})\r\n" ++
+                "({d:>6.2},{d:>6.2})", .{
                 raw.width, raw.height, t, p, x, y, z, plotx, ploty,
             });
             try plt.plot(plotx, ploty);
@@ -169,6 +169,37 @@ pub const Point = struct {
         };
     }
 };
+
+const horiz = std.unicode.utf8EncodeComptime(0x2500);
+const vert = std.unicode.utf8EncodeComptime(0x2502);
+const cornerdr = std.unicode.utf8EncodeComptime(0x250C);
+const cornerdl = std.unicode.utf8EncodeComptime(0x2510);
+const cornerur = std.unicode.utf8EncodeComptime(0x2514);
+const cornerul = std.unicode.utf8EncodeComptime(0x2518);
+comptime {
+    if (false)
+        @compileError(&horiz ++ vert ++ " " ++ cornerdr ++ cornerdl ++ " " ++ cornerur ++ cornerul);
+}
+
+/// top left corner, bottom right corner
+pub fn box(raw: tty.RawMode, ptl: Point, pbr: Point) !void {
+    const x0: u16 = @intFromFloat(if (ptl.x < pbr.x) ptl.x else pbr.x);
+    const x1: u16 = @intFromFloat(if (ptl.x < pbr.x) pbr.x else ptl.x);
+    const y0: u16 = @intFromFloat(if (ptl.y < pbr.y) ptl.y else pbr.y);
+    const y1: u16 = @intFromFloat(if (ptl.y < pbr.y) pbr.y else ptl.y);
+    for (x0..x1) |w| {
+        try raw.goto(w, y0);
+        _ = try raw.tty.write(&horiz);
+        try raw.goto(w, y1);
+        _ = try raw.tty.write(&horiz);
+    }
+    for (y0..y1) |h| {
+        try raw.goto(x0, h);
+        _ = try raw.tty.write(&vert);
+        try raw.goto(x1, h);
+        _ = try raw.tty.write(&vert);
+    }
+}
 
 pub fn curve(plt: *plotter.Plotter, p0: Point, p1: Point, p2: Point) !void {
     var t: f32 = 0;

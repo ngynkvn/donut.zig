@@ -58,9 +58,10 @@ pub fn main() !void {
             }
             _ = try raw.tty.write(buffer[0..n]);
             try draw.torus(&plot, raw, a, b);
-            try raw.goto(0, raw.height - 2);
+            try draw.box(raw, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
+            try raw.goto(3, raw.height - 4);
             const elapsed: f32 = @floatFromInt((try std.time.Instant.now()).since(start));
-            try raw.write("{d} ms", .{elapsed / std.time.ns_per_ms});
+            try raw.write("{d:<4.2}  ms", .{elapsed / std.time.ns_per_ms});
             a += 0.05;
             b += 0.02;
         }
