@@ -117,7 +117,7 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     }
 
     const k1 = 8.0;
-    const k2 = 5.0;
+    const k2 = 4.0;
     const r1 = 1.0;
     const r2 = 3.0;
     var t: f32 = 0.0;
