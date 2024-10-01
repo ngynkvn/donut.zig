@@ -30,12 +30,12 @@ pub fn main() !void {
     // Line test
     {
         var timer = try std.time.Timer.start();
-        try draw.line(&plot, .{ .x = 0, .y = @as(f64, @floatFromInt(raw.height)) - 0.1 }, .{ .x = @floatFromInt(raw.width), .y = @as(f64, @floatFromInt(raw.height)) - 0.1 });
+        try draw.line(&plot, .{ .x = 0, .y = @as(f32, @floatFromInt(raw.height)) - 0.1 }, .{ .x = @floatFromInt(raw.width), .y = @as(f32, @floatFromInt(raw.height)) - 0.1 });
         try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 1) }, .{ .x = @floatFromInt(raw.width), .y = @floatFromInt(raw.height - 1) });
         try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 2) }, .{ .x = @floatFromInt(raw.width), .y = @floatFromInt(raw.height - 2) });
         try raw.goto(0, raw.height);
         try raw.printTermSize();
-        const elapsed: f64 = @floatFromInt(timer.lap());
+        const elapsed: f32 = @floatFromInt(timer.lap());
         try raw.goto(0, 0);
         try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
     }
@@ -53,14 +53,14 @@ pub fn main() !void {
             .{ .x = 58, .y = 12 },
         );
         try draw.coords(&plot, raw);
-        const elapsed: f64 = @floatFromInt(timer.lap());
+        const elapsed: f32 = @floatFromInt(timer.lap());
         try raw.goto(0, 0);
         try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
     }
 
     {
-        var a: f64 = 0.0;
-        var b: f64 = 0.0;
+        var a: f32 = 0.0;
+        var b: f32 = 0.0;
         var buffer: [128]u8 = undefined;
         var frame_times: [32]u64 = .{0} ** 32;
         var frame: usize = 0;
@@ -86,9 +86,9 @@ pub fn main() !void {
             frame_times[frame] = elapsed;
             frame = (frame + 1) % 32;
 
-            var sum: f64 = 0;
+            var sum: f32 = 0;
             for (frame_times) |t| {
-                sum += (@as(f64, @floatFromInt(t)) / 32);
+                sum += (@as(f32, @floatFromInt(t)) / 32);
             }
             try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
             std.Thread.sleep(16 * std.time.ns_per_ms);

@@ -1,6 +1,9 @@
 const std = @import("std");
 const tty = @import("tty.zig");
 
+comptime {
+    @import("settings.zig").Check(Plotter);
+}
 // Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
     const Key = struct { i32, i32 };
@@ -17,14 +20,14 @@ pub const Plotter = struct {
         self.buffer.clearRetainingCapacity();
     }
 
-    pub fn get(self: *Plotter, x: f64, y: f64) ![3]u8 {
+    pub fn get(self: *Plotter, x: f32, y: f32) ![3]u8 {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         if (try self.buffer.get(key)) |entry| {
             return BraillePoint(entry.value_ptr.*);
         } else return null;
     }
 
-    pub fn plot(self: *Plotter, x: f64, y: f64) !void {
+    pub fn plot(self: *Plotter, x: f32, y: f32) !void {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
