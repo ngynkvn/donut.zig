@@ -115,12 +115,12 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
         // => (x*cos(p)-(z*sin(p)), y, x*sin(p)+z*cos(p))
         // Then we just repeat this for the other [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations)
     }
-    const k1 = 8.0;
-    const k2 = 5.0;
+    const k1 = 7.0;
+    const k2 = 6.0;
     const r1 = 1.0;
     const r2 = 3.0;
     var t: f32 = 0.0;
-    while (t < 2 * std.math.pi) : (t += 0.3) {
+    while (t < 2 * std.math.pi) : (t += 0.05) {
         var p: f32 = 0;
         while (p < 2 * std.math.pi) : (p += 0.2) {
             // So first, a circle.
