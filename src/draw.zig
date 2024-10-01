@@ -115,12 +115,12 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
         // => (x*cos(p)-(z*sin(p)), y, x*sin(p)+z*cos(p))
         // Then we just repeat this for the other [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations)
     }
-    const k1 = 15.0;
+    const k1 = 8.0;
     const k2 = 5.0;
     const r1 = 1.0;
     const r2 = 3.0;
     var t: f32 = 0.0;
-    while (t < 2 * std.math.pi) : (t += 0.2) {
+    while (t < 2 * std.math.pi) : (t += 0.3) {
         var p: f32 = 0;
         while (p < 2 * std.math.pi) : (p += 0.2) {
             // So first, a circle.
@@ -134,17 +134,10 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             var x = cx * (cosb * cosp + sina * sinb * sinp) - (cy * cosa * sinb);
             var y = cx * (cosp * sinb - cosb * sina * sinp) + (cy * cosa * cosb);
             const z = cosa * cx * sinp + (cy * sina);
-            x = (k1 * x) / (z + k2);
-            y = (k1 * y) / (z + k2) / 2;
-            if ((x + 30) < 0 or (y + 15) < 0) {
-                try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
-                try raw.write("WASGONNA CRASH: {d}x{d} | ({d:.2}, {d:.2}, {d:.2})", .{
-                    raw.width, raw.height, x, y, z,
-                });
-                return;
-            }
-            const plotx = x + 30;
-            const ploty = y + 15;
+            x = (k1 * 2 * x) / (z + k2);
+            y = (k1 * y) / (z + k2);
+            const plotx = x + 80;
+            const ploty = y + 20;
             try raw.write(E.HOME, .{});
             try raw.write( //
                 "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
