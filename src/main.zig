@@ -5,6 +5,8 @@ const system = std.posix.system;
 
 const tty = @import("tty.zig");
 const draw = @import("draw.zig");
+const plotter = @import("plotter.zig");
+const braille = @import("braille.zig");
 const E = tty.E;
 var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
 const allocator = gpa.allocator();
@@ -21,20 +23,20 @@ pub fn main() !void {
             @panic("no good");
         }
     }
-
+    var plot = braille.Plotter.init(allocator, raw);
+    defer plot.deinit();
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
     const start: f64 = @floatFromInt(std.time.nanoTimestamp());
-    try draw.circle(allocator, raw, 20, 50, 30);
-    try draw.circle(allocator, raw, 5, 40, 36);
-    try draw.circle(allocator, raw, 3, 60, 32);
+    try draw.circle(&plot, raw, 20, 50, 30);
+    try draw.circle(&plot, raw, 5, 40, 36);
+    try draw.circle(&plot, raw, 3, 60, 32);
     try draw.curve(
-        allocator,
-        raw,
+        &plot,
         .{ .x = 42, .y = 12 },
         .{ .x = 46, .y = 8 },
         .{ .x = 58, .y = 12 },
     );
-    try draw.coords(allocator, raw);
+    try draw.coords(&plot, raw);
     const end: f64 = @floatFromInt(std.time.nanoTimestamp());
     try raw.goto(0, 0);
     try raw.write("{d} ms.", .{(end - start) / std.time.ns_per_ms});
@@ -51,7 +53,7 @@ pub fn main() !void {
             return;
         }
         _ = try raw.tty.write(buffer[0..n]);
-        try draw.torus(allocator, raw, a, b);
+        try draw.torus(&plot, raw, a, b);
         a += 0.05;
         b += 0.02;
     }

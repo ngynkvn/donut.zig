@@ -12,10 +12,19 @@ pub const Plotter = struct {
     pub fn deinit(self: *Plotter) void {
         self.buffer.deinit();
     }
+
     pub fn clear(self: *Plotter) void {
         self.buffer.clearRetainingCapacity();
     }
-    pub fn plot(self: *Plotter, x: f32, y: f32) ![3]u8 {
+
+    pub fn get(self: *Plotter, x: f32, y: f32) ![3]u8 {
+        const key = Key{ @intFromFloat(x), @intFromFloat(y) };
+        if (try self.buffer.get(key)) |entry| {
+            return BraillePoint(entry.value_ptr.*);
+        } else return null;
+    }
+
+    pub fn plot(self: *Plotter, x: f32, y: f32) !void {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
@@ -24,7 +33,7 @@ pub const Plotter = struct {
             result.value_ptr.* = 0;
         }
         result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
-        return BraillePoint(result.value_ptr.*);
+        try self.raw.write(tty.E.GOTO ++ "{s}", .{ @as(u16, @intFromFloat(@trunc(x))), @as(u16, @intFromFloat(@trunc(y))), BraillePoint(result.value_ptr.*) });
     }
 };
 ///The Braille unicode range is #x2800 - #x28FF, where each dot is one of 8 bits
@@ -75,6 +84,10 @@ test "braille accessor" {
         try std.testing.expectEqual(
             0b1000_0000,
             set_bbit(0, 1, 0),
+        );
+        try std.testing.expectEqual(
+            0b0100_0000,
+            set_bbit(0, 0, 0),
         );
         try std.testing.expectEqual(
             0b0000_1000,

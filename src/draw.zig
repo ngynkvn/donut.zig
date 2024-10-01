@@ -10,10 +10,7 @@ const E = tty.E;
 ///
 /// Then, stepping from t=[0, 2pi] the circle is then defined by
 ///     c = origin + (r * cos(t), r * sin(t))
-pub fn circle(allocator: std.mem.Allocator, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
-    var plt = braille.Plotter.init(allocator, raw);
-    defer plt.deinit();
-
+pub fn circle(plt: *braille.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
     const tmax = 2 * std.math.pi;
     const tstep = 0.02;
     var t: f32 = 0;
@@ -31,41 +28,32 @@ pub fn circle(allocator: std.mem.Allocator, raw: tty.RawMode, r: f32, ox: f32, o
         // Convert 0.0 - 1.0 to 0 - 3
         const by = @trunc(suby * 4);
 
-        const bbit = try plt.plot(x, y);
+        try plt.plot(x, y);
         try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
-        try raw.write("{d}x{d} | ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1}) {s}", .{
+        try raw.write("{d}x{d} | ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1})", .{
             raw.width, raw.height,
             x,         y,
             plotx,     bx,
             ploty,     by,
-            bbit,
         });
-        try raw.goto(plotx, ploty);
-        _ = try raw.tty.write(&bbit);
         // Slight delay to see drawing!
         // std.time.sleep(std.time.ns_per_ms);
     }
 }
 
-pub fn coords(allocator: std.mem.Allocator, raw: tty.RawMode) !void {
-    var plt = braille.Plotter.init(allocator, raw);
-    defer plt.deinit();
+pub fn coords(plt: *braille.Plotter, raw: tty.RawMode) !void {
     for (0..raw.height - 1) |i| {
         try raw.goto(0, i);
-        const char = try plt.plot(0, @floatFromInt(i));
-        _ = try raw.tty.write(&char);
+        try plt.plot(0, @floatFromInt(i));
     }
     for (0..raw.width) |i| {
         try raw.goto(i, 0);
-        _ = try plt.plot(@floatFromInt(i), 0);
-        const char = try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
-        _ = try raw.tty.write(&char);
+        try plt.plot(@floatFromInt(i), 0);
+        try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
     }
 }
 
-pub fn sin(allocator: std.mem.Allocator, raw: tty.RawMode, shift: f32) !void {
-    var plt = braille.Plotter.init(allocator, raw);
-    defer plt.deinit();
+pub fn sin(plt: *braille.Plotter, raw: tty.RawMode, shift: f32) !void {
     const start: f64 = @floatFromInt(std.time.nanoTimestamp());
     var x: f32 = 0.0;
     // Clear the lines before rendering
@@ -89,9 +77,9 @@ pub fn sin(allocator: std.mem.Allocator, raw: tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
-pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode, a: f32, b: f32) !void {
-    var plt = braille.Plotter.init(allocator, raw);
-    defer plt.deinit();
+pub fn torus(plt: *braille.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
+    plt.clear();
+
     { // INFO:
         //
         // To render a 3d object onto a 2d screen,
@@ -165,9 +153,7 @@ pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode, a: f32, b: f32) !vo
                 z,         plotx,
                 ploty,
             });
-            const char = try plt.plot(x, y);
-            try raw.goto(plotx, ploty);
-            _ = try raw.tty.write(&char);
+            try plt.plot(x, y);
         }
     }
 }
@@ -185,19 +171,13 @@ pub const Point = struct {
     }
 };
 
-pub fn curve(allocator: std.mem.Allocator, raw: tty.RawMode, p0: Point, p1: Point, p2: Point) !void {
-    var plt = braille.Plotter.init(allocator, raw);
-    defer plt.deinit();
+pub fn curve(plt: *braille.Plotter, p0: Point, p1: Point, p2: Point) !void {
     var t: f32 = 0;
     while (t < 1.0) : (t += 0.01) {
         const a = p0.lerp(t, p1);
         const b = p1.lerp(t, p2);
         const c = a.lerp(t, b);
-        const char = try plt.plot(a.x, a.y);
-        const plotx: u16 = @intFromFloat(@trunc(c.x));
-        const ploty: u16 = @intFromFloat(@trunc(c.y));
-        try raw.goto(plotx, ploty);
-        _ = try raw.tty.write(&char);
+        try plt.plot(c.x, c.y);
     }
 }
 
