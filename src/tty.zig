@@ -83,12 +83,15 @@ pub const RawMode = struct {
         const height = ws.row;
         std.log.debug("ws is {}x{}\n", .{ width, height });
         _ = try tty.write(E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE);
-        return .{
+        const term = .{
             .orig_termios = orig_termios,
             .tty = tty,
             .width = width,
             .height = height,
         };
+        // Hook into panic so we can restore terminal state
+        @import("panic.zig").rawterm = term;
+        return term;
     }
     pub fn restore(self: RawMode) !posix.E {
         _ = try self.tty.write(E.EXIT_ALT_SCREEN ++ E.CURSOR_VISIBLE);

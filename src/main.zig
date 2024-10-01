@@ -72,3 +72,4 @@ pub fn main() !void {
 test {
     std.testing.refAllDecls(@This());
 }
+pub const Panic = @import("panic.zig");

@@ -80,7 +80,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
-    try raw.goto(0, raw.height - 10);
+    try raw.goto(0, raw.height - 6);
     try raw.write(E.CLEAR_DOWN, .{});
 
     { // INFO:
@@ -115,6 +115,7 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
         // => (x*cos(p)-(z*sin(p)), y, x*sin(p)+z*cos(p))
         // Then we just repeat this for the other [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations)
     }
+
     const k1 = 8.0;
     const k2 = 5.0;
     const r1 = 1.0;
@@ -136,8 +137,8 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             const z = cosa * cx * sinp + (cy * sina);
             x = (k1 * 2 * x) / (z + k2);
             y = (k1 * y) / (z + k2);
-            const plotx = x + 80;
-            const ploty = y + 20;
+            const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
+            const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
             try raw.write(E.HOME, .{});
             try raw.write( //
                 "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
@@ -162,13 +163,14 @@ pub const Point = struct {
         };
     }
 };
-
-const horiz = std.unicode.utf8EncodeComptime(0x2500);
-const vert = std.unicode.utf8EncodeComptime(0x2502);
+// zig fmt: off
+const horiz    = std.unicode.utf8EncodeComptime(0x2500);
+const vert     = std.unicode.utf8EncodeComptime(0x2502);
 const cornerdr = std.unicode.utf8EncodeComptime(0x250C);
 const cornerdl = std.unicode.utf8EncodeComptime(0x2510);
 const cornerur = std.unicode.utf8EncodeComptime(0x2514);
 const cornerul = std.unicode.utf8EncodeComptime(0x2518);
+// zig fmt: on
 comptime {
     if (false)
         @compileError(&horiz ++ vert ++ " " ++ cornerdr ++ cornerdl ++ " " ++ cornerur ++ cornerul);
