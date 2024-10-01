@@ -35,7 +35,7 @@ pub const Plotter = struct {
         result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
         const plotx: u16 = @intFromFloat(@trunc(x));
         const ploty: u16 = @intFromFloat(@trunc(y));
-        try self.raw.write(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
+        try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
     }
 };
 

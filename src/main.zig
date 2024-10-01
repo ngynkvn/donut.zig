@@ -40,7 +40,7 @@ pub fn main() !void {
         try draw.coords(&plot, raw);
         const elapsed: f32 = @floatFromInt(timer.lap());
         try raw.goto(0, 0);
-        try raw.write("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
+        try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
     }
 
     {
@@ -49,7 +49,7 @@ pub fn main() !void {
         var buffer: [128]u8 = undefined;
         var frame_times: [32]u64 = .{0} ** 32;
         var frame: usize = 0;
-        try raw.write(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{2});
+        try raw.print(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{2});
         var timer_read = try std.time.Timer.start();
         var timer_frame = try std.time.Timer.start();
         while (true) {
@@ -75,7 +75,7 @@ pub fn main() !void {
             for (frame_times) |t| {
                 sum += (@as(f32, @floatFromInt(t)) / 32);
             }
-            try raw.write("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
+            try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
             std.Thread.sleep(16 * std.time.ns_per_ms);
         }
     }

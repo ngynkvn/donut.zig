@@ -30,8 +30,8 @@ pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32)
         const by = @trunc(suby * 4);
 
         try plt.plot(x, y);
-        try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
-        try raw.write("{d}x{d} | ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1})", .{
+        try raw.print(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
+        try raw.print("{d}x{d} | ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1})", .{
             raw.width, raw.height,
             x,         y,
             plotx,     bx,
@@ -60,9 +60,9 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
     // Clear the lines before rendering
     for (1..5) |y| {
         try raw.goto(0, y);
-        try raw.write(E.CLEAR_LINE, .{});
+        try raw.print(E.CLEAR_LINE, .{});
     }
-    try raw.write(E.SET_ANSI_FG, .{2});
+    try raw.print(E.SET_ANSI_FG, .{2});
     while (x < @as(f32, @floatFromInt(raw.width))) : (x += 0.1) {
         const y = @sin(x + shift) * 2 + 3.0;
         const c = try plt.plot(x, y);
@@ -72,7 +72,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 
     const elapsed: f32 = @floatFromInt(timer.lap());
     try raw.goto(24, 0);
-    try raw.write("{d} ms.", .{elapsed / std.time.ns_per_ms});
+    try raw.print("{d} ms.", .{elapsed / std.time.ns_per_ms});
 }
 
 /// TODO:
@@ -81,7 +81,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
     try raw.goto(0, raw.height - 6);
-    try raw.write(E.CLEAR_DOWN, .{});
+    try raw.print(E.CLEAR_DOWN, .{});
 
     { // INFO:
         //
@@ -139,8 +139,8 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             y = (k1 * y) / (z + k2);
             const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
             const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
-            try raw.write(E.HOME, .{});
-            try raw.write( //
+            try raw.print(E.HOME, .{});
+            try raw.print( //
                 "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
                 "({d:>6.2},{d:>6.2},{d:>6.2})\r\n" ++
                 "({d:>6.2},{d:>6.2})", .{

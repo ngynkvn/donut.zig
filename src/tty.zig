@@ -101,7 +101,7 @@ pub const RawMode = struct {
     /// Move cursor to (x, y) (column, row)
     /// (0, 0) is defined as the bottom left corner of the terminal.
     pub fn goto(self: RawMode, x: usize, y: usize) !void {
-        try self.write(E.GOTO, .{ self.height - y, x });
+        try self.print(E.GOTO, .{ self.height - y, x });
     }
     pub fn query(self: RawMode) !CursorPos {
         _ = try self.tty.write(E.REPORT_CURSOR_POS);
@@ -118,8 +118,8 @@ pub const RawMode = struct {
     pub fn read(self: RawMode, buffer: []u8) !usize {
         return self.tty.read(buffer);
     }
-    /// write to screen via fmt string
-    pub fn write(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
+    /// print to screen via fmt string
+    pub fn print(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
         try self.tty.writer().print(fmt, args);
     }
 };
