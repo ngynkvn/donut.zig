@@ -17,14 +17,14 @@ pub const Plotter = struct {
         self.buffer.clearRetainingCapacity();
     }
 
-    pub fn get(self: *Plotter, x: f32, y: f32) ![3]u8 {
+    pub fn get(self: *Plotter, x: f64, y: f64) ![3]u8 {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         if (try self.buffer.get(key)) |entry| {
             return BraillePoint(entry.value_ptr.*);
         } else return null;
     }
 
-    pub fn plot(self: *Plotter, x: f32, y: f32) !void {
+    pub fn plot(self: *Plotter, x: f64, y: f64) !void {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);

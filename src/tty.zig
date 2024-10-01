@@ -103,6 +103,9 @@ pub const RawMode = struct {
     pub fn goto(self: RawMode, x: usize, y: usize) !void {
         try self.print(E.GOTO, .{ self.height - y, x });
     }
+    pub fn printTermSize(self: RawMode) !void {
+        try self.print("{d}x{d}", .{ self.width, self.height });
+    }
     pub fn query(self: RawMode) !CursorPos {
         _ = try self.tty.write(E.REPORT_CURSOR_POS);
         // TODO: make this more durable
