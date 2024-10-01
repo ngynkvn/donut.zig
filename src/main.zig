@@ -27,7 +27,7 @@ pub fn main() !void {
     defer plot.deinit();
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
     {
-        const start = try std.time.Instant.now();
+        var timer = try std.time.Timer.start();
         try draw.circle(&plot, raw, 20, 50, 30);
         try draw.circle(&plot, raw, 5, 40, 36);
         try draw.circle(&plot, raw, 3, 60, 32);
@@ -38,32 +38,45 @@ pub fn main() !void {
             .{ .x = 58, .y = 12 },
         );
         try draw.coords(&plot, raw);
-        const elapsed: f32 = @floatFromInt((try std.time.Instant.now()).since(start));
+        const elapsed: f32 = @floatFromInt(timer.lap());
         try raw.goto(0, 0);
         try raw.write("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
     }
 
-    var a: f32 = 0.0;
-    var b: f32 = 0.0;
-    var buffer: [128]u8 = undefined;
-    try raw.write(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{2});
     {
-        while (raw.read(&buffer) catch null) |n| {
-            const start = try std.time.Instant.now();
-            if (std.mem.eql(u8, buffer[0..n], "\r")) {
-                return;
+        var a: f32 = 0.0;
+        var b: f32 = 0.0;
+        var buffer: [128]u8 = undefined;
+        var frame_times: [32]u64 = .{0} ** 32;
+        var frame: usize = 0;
+        try raw.write(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{2});
+        var timer_read = try std.time.Timer.start();
+        var timer_frame = try std.time.Timer.start();
+        while (true) {
+            if (timer_read.read() > std.time.ns_per_ms * 100) {
+                const n = try raw.read(&buffer);
+                if (std.mem.eql(u8, buffer[0..n], "\r")) {
+                    return;
+                }
+                if (std.mem.eql(u8, buffer[0..n], "\x03")) { // <C-c>
+                    return;
+                }
             }
-            if (std.mem.eql(u8, buffer[0..n], "\x03")) { // <C-c>
-                return;
-            }
-            _ = try raw.tty.write(buffer[0..n]);
             try draw.torus(&plot, raw, a, b);
             try draw.box(raw, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
-            try raw.goto(3, raw.height - 4);
-            const elapsed: f32 = @floatFromInt((try std.time.Instant.now()).since(start));
-            try raw.write("{d:<4.2}  ms", .{elapsed / std.time.ns_per_ms});
+            try raw.goto(0, raw.height - 4);
             a += 0.05;
             b += 0.02;
+            const elapsed: u64 = timer_frame.lap();
+            frame_times[frame] = elapsed;
+            frame = (frame + 1) % 32;
+
+            var sum: f32 = 0;
+            for (frame_times) |t| {
+                sum += (@as(f32, @floatFromInt(t)) / 32);
+            }
+            try raw.write("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
+            std.Thread.sleep(16 * std.time.ns_per_ms);
         }
     }
 }

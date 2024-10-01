@@ -55,7 +55,7 @@ pub fn coords(plt: *plotter.Plotter, raw: tty.RawMode) !void {
 }
 
 pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
-    const start = try std.time.Instant.now();
+    var timer = try std.time.Timer.start();
     var x: f32 = 0.0;
     // Clear the lines before rendering
     for (1..5) |y| {
@@ -70,7 +70,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
         _ = try raw.tty.write(&c);
     }
 
-    const elapsed: f32 = @floatFromInt((try std.time.Instant.now()).since(start));
+    const elapsed: f32 = @floatFromInt(timer.lap());
     try raw.goto(24, 0);
     try raw.write("{d} ms.", .{elapsed / std.time.ns_per_ms});
 }
