@@ -64,7 +64,7 @@ pub const RawMode = struct {
         raw.cflag.CSIZE  = .CS8;
 
         raw.cc[@intFromEnum(system.V.MIN)]  = 0; // min bytes required for read
-        raw.cc[@intFromEnum(system.V.TIME)] = 1; // min time to wait for response, 100ms per unit
+        raw.cc[@intFromEnum(system.V.TIME)] = 0; // min time to wait for response, 100ms per unit
         // zig fmt: on
 
         const rc = system.tcsetattr(tty.handle, .FLUSH, &raw);
