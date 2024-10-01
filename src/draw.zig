@@ -11,10 +11,10 @@ const E = tty.E;
 ///
 /// Then, stepping from t=[0, 2pi] the circle is then defined by
 ///     c = origin + (r * cos(t), r * sin(t))
-pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
+pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f16, ox: f16, oy: f16) !void {
     const tmax = 2 * std.math.pi;
     const tstep = 0.02;
-    var t: f32 = 0;
+    var t: f16 = 0;
 
     // draw circle
     while (t < tmax + 0.1) : (t += tstep) {
@@ -50,20 +50,20 @@ pub fn coords(plt: *plotter.Plotter, raw: tty.RawMode) !void {
     for (0..raw.width) |i| {
         try raw.goto(i, 0);
         try plt.plot(@floatFromInt(i), 0);
-        try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
+        try plt.plot(@as(f16, @floatFromInt(i)) + 0.6, 0);
     }
 }
 
-pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
+pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f16) !void {
     const start = try std.time.Instant.now();
-    var x: f32 = 0.0;
+    var x: f16 = 0.0;
     // Clear the lines before rendering
     for (1..5) |y| {
         try raw.goto(0, y);
         try raw.write(E.CLEAR_LINE, .{});
     }
     try raw.write(E.SET_ANSI_FG, .{2});
-    while (x < @as(f32, @floatFromInt(raw.width))) : (x += 0.1) {
+    while (x < @as(f16, @floatFromInt(raw.width))) : (x += 0.1) {
         const y = @sin(x + shift) * 2 + 3.0;
         const c = try plt.plot(x, y);
         try raw.goto(@intFromFloat(x), @intFromFloat(y));
@@ -78,7 +78,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
-pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
+pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f16, b: f16) !void {
     plt.clear();
     try raw.goto(0, raw.height - 6);
     try raw.write(E.CLEAR_DOWN, .{});
@@ -120,25 +120,25 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     const k2 = 5.0;
     const r1 = 1.0;
     const r2 = 3.0;
-    var t: f32 = 0.0;
+    var t: f16 = 0.0;
     while (t < 2 * std.math.pi) : (t += 0.3) {
-        var p: f32 = 0;
+        var p: f16 = 0;
         while (p < 2 * std.math.pi) : (p += 0.2) {
             // So first, a circle.
-            const cx: f32 = r2 + r1 * @cos(t);
-            const cy: f32 = (r1 * @sin(t));
+            const cx: f16 = r2 + r1 * @cos(t);
+            const cy: f16 = (r1 * @sin(t));
             // Then apply the rotation to form the torus and movement
             // zig fmt: off
-            const sina: f32 = @sin(a); const sinb: f32 = @sin(b); const sinp: f32 = @sin(p);
-            const cosa: f32 = @cos(a); const cosb: f32 = @cos(b); const cosp: f32 = @cos(p);
+            const sina: f16 = @sin(a); const sinb: f16 = @sin(b); const sinp: f16 = @sin(p);
+            const cosa: f16 = @cos(a); const cosb: f16 = @cos(b); const cosp: f16 = @cos(p);
             // zig fmt: on
             var x = cx * (cosb * cosp + sina * sinb * sinp) - (cy * cosa * sinb);
             var y = cx * (cosp * sinb - cosb * sina * sinp) + (cy * cosa * cosb);
             const z = cosa * cx * sinp + (cy * sina);
             x = (k1 * 2 * x) / (z + k2);
             y = (k1 * y) / (z + k2);
-            const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
-            const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
+            const plotx = x + @as(f16, @floatFromInt(raw.width)) / 2;
+            const ploty = y + @as(f16, @floatFromInt(raw.height - 5)) / 2;
             try raw.write(E.HOME, .{});
             try raw.write( //
                 "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
@@ -154,9 +154,9 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
 const M = @This();
 
 pub const Point = struct {
-    x: f32,
-    y: f32,
-    pub fn lerp(p1: Point, t: f32, p2: Point) Point {
+    x: f16,
+    y: f16,
+    pub fn lerp(p1: Point, t: f16, p2: Point) Point {
         return Point{
             .x = M.lerp(t, p1.x, p2.x),
             .y = M.lerp(t, p1.y, p2.y),
@@ -197,7 +197,7 @@ pub fn box(raw: tty.RawMode, ptl: Point, pbr: Point) !void {
 }
 
 pub fn curve(plt: *plotter.Plotter, p0: Point, p1: Point, p2: Point) !void {
-    var t: f32 = 0;
+    var t: f16 = 0;
     while (t < 1.0) : (t += 0.01) {
         const a = p0.lerp(t, p1);
         const b = p1.lerp(t, p2);
@@ -207,6 +207,6 @@ pub fn curve(plt: *plotter.Plotter, p0: Point, p1: Point, p2: Point) !void {
 }
 
 /// lerp does a linear interpolation
-pub fn lerp(t: f32, x1: f32, x2: f32) f32 {
+pub fn lerp(t: f16, x1: f16, x2: f16) f16 {
     return (x1 * t) + x2 * (1 - t);
 }

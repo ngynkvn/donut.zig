@@ -43,8 +43,8 @@ pub fn main() !void {
         try raw.write("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
     }
 
-    var a: f32 = 0.0;
-    var b: f32 = 0.0;
+    var a: f16 = 0.0;
+    var b: f16 = 0.0;
     var buffer: [128]u8 = undefined;
     try raw.write(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{2});
     {
