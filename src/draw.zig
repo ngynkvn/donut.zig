@@ -4,8 +4,6 @@ const tty = @import("tty.zig");
 const braille = @import("braille.zig");
 const E = tty.E;
 
-pub const Point = struct { x: f32, y: f32 };
-
 /// Drawing a circle in 2d can be defined by two variables:
 ///    - origin: an (x, y) point on the plane
 ///    - r: the desired radius of the circle
@@ -174,26 +172,36 @@ pub fn torus(allocator: std.mem.Allocator, raw: tty.RawMode, a: f32, b: f32) !vo
     }
 }
 
+const M = @This();
+
+pub const Point = struct {
+    x: f32,
+    y: f32,
+    pub fn lerp(p1: Point, t: f32, p2: Point) Point {
+        return Point{
+            .x = M.lerp(t, p1.x, p2.x),
+            .y = M.lerp(t, p1.y, p2.y),
+        };
+    }
+};
+
 pub fn curve(allocator: std.mem.Allocator, raw: tty.RawMode, p0: Point, p1: Point, p2: Point) !void {
     var plt = braille.Plotter.init(allocator, raw);
     defer plt.deinit();
     var t: f32 = 0;
     while (t < 1.0) : (t += 0.01) {
-        const ax = lerp(t, p0.x, p1.x);
-        const ay = lerp(t, p0.y, p1.y);
-        const bx = lerp(t, p1.x, p2.x);
-        const by = lerp(t, p1.y, p2.y);
-        const cx = lerp(t, ax, bx);
-        const cy = lerp(t, ay, by);
-        const char = try plt.plot(cx, cy);
-        const plotx: u16 = @intFromFloat(@trunc(cx));
-        const ploty: u16 = @intFromFloat(@trunc(cy));
+        const a = p0.lerp(t, p1);
+        const b = p1.lerp(t, p2);
+        const c = a.lerp(t, b);
+        const char = try plt.plot(a.x, a.y);
+        const plotx: u16 = @intFromFloat(@trunc(c.x));
+        const ploty: u16 = @intFromFloat(@trunc(c.y));
         try raw.goto(plotx, ploty);
         _ = try raw.tty.write(&char);
     }
 }
 
 /// lerp does a linear interpolation
-fn lerp(t: f32, x1: f32, x2: f32) f32 {
+pub fn lerp(t: f32, x1: f32, x2: f32) f32 {
     return (x1 * t) + x2 * (1 - t);
 }
