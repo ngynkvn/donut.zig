@@ -50,10 +50,11 @@ pub const BRAILLE_TABLE: [256][3]u8 = ret: {
 ///    1 4 -> 02 12 | 001 100
 ///    2 5 -> 01 11 | 010 101
 ///    6 7 -> 00 10 | 110 111
-pub fn set_bbit(braille_bit: u8, x: u1, y: u2) u8 {
-    // TODO: check for better way to do this
-    var pos: u3 = ((3 - y) + @as(u3, x) * 3);
-    if (y == 0) pos = 6 + @as(u3, x);
+pub fn set_bbit(braille_bit: u8, xi: u1, yi: u2) u8 {
+    const mask: u3 = ~(yi | yi >> 1) & 1;
+    const x = @as(u3, xi);
+    const y = @as(u3, yi);
+    const pos = (y ^ 3) + x * 3 + (mask | mask << (~xi & 1));
     return braille_bit | (@as(u8, 1) << @truncate(pos));
 }
 
