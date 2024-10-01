@@ -29,7 +29,7 @@ pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32)
         // Convert 0.0 - 1.0 to 0 - 3
         const by = @trunc(suby * 4);
 
-        try plt.plot(x, y);
+        _ = try raw.tty.write(try plt.plot(x, y));
         try raw.write(E.GOTO ++ E.CLEAR_LINE, .{ 0, 0 });
         try raw.write("{d}x{d} | ({d:.2}, {d:.2}) ({}+{d:.1}, {}+{d:.1})", .{
             raw.width, raw.height,
@@ -45,12 +45,12 @@ pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32)
 pub fn coords(plt: *plotter.Plotter, raw: tty.RawMode) !void {
     for (0..raw.height - 1) |i| {
         try raw.goto(0, i);
-        try plt.plot(0, @floatFromInt(i));
+        _ = try plt.plot(0, @floatFromInt(i));
     }
     for (0..raw.width) |i| {
         try raw.goto(i, 0);
-        try plt.plot(@floatFromInt(i), 0);
-        try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
+        _ = try plt.plot(@floatFromInt(i), 0);
+        _ = try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
     }
 }
 
@@ -121,6 +121,10 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     const r1 = 1.0;
     const r2 = 3.0;
     var t: f32 = 0.0;
+    // gonna try buffering
+    var buffer = std.ArrayList(u8).init(std.heap.page_allocator);
+    var writer = buffer.writer();
+    defer buffer.deinit();
     while (t < 2 * std.math.pi) : (t += 0.3) {
         var p: f32 = 0;
         while (p < 2 * std.math.pi) : (p += 0.2) {
@@ -139,16 +143,18 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             y = (k1 * y) / (z + k2);
             const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
             const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
-            try raw.write(E.HOME, .{});
-            try raw.write( //
+            try writer.print(E.HOME, .{});
+            try writer.print( //
                 "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
                 "({d:>6.2},{d:>6.2},{d:>6.2})\r\n" ++
                 "({d:>6.2},{d:>6.2})", .{
                 raw.width, raw.height, t, p, x, y, z, plotx, ploty,
             });
-            try plt.plot(plotx, ploty);
+            _ = try writer.print("{s}", .{try plt.plot(plotx, ploty)});
         }
     }
+    const slice = try buffer.toOwnedSlice();
+    _ = try raw.tty.write(slice);
 }
 
 const M = @This();
@@ -202,7 +208,7 @@ pub fn curve(plt: *plotter.Plotter, p0: Point, p1: Point, p2: Point) !void {
         const a = p0.lerp(t, p1);
         const b = p1.lerp(t, p2);
         const c = a.lerp(t, b);
-        try plt.plot(c.x, c.y);
+        _ = try plt.plot(c.x, c.y);
     }
 }
 

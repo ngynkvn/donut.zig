@@ -24,7 +24,7 @@ pub const Plotter = struct {
         } else return null;
     }
 
-    pub fn plot(self: *Plotter, x: f32, y: f32) !void {
+    pub fn plot(self: *Plotter, x: f32, y: f32) ![]u8 {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
@@ -35,7 +35,13 @@ pub const Plotter = struct {
         result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
         const plotx: u16 = @intFromFloat(@trunc(x));
         const ploty: u16 = @intFromFloat(@trunc(y));
-        try self.raw.write(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
+        //try self.raw.write(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
+        var buf: [32]u8 = .{0} ** 32;
+        return std.fmt.bufPrint(
+            &buf,
+            tty.E.GOTO ++ "{s}",
+            .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) },
+        );
     }
 };
 
