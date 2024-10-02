@@ -101,7 +101,10 @@ pub const RawMode = struct {
     /// Move cursor to (x, y) (column, row)
     /// (0, 0) is defined as the bottom left corner of the terminal.
     pub fn goto(self: RawMode, x: usize, y: usize) !void {
-        try self.print(E.GOTO, .{ self.height - y, x });
+        try self.print(E.GOTO, self.goto_args(x, y));
+    }
+    pub fn goto_args(self: RawMode, x: usize, y: usize) struct { usize, usize } {
+        return .{ self.height - y, x };
     }
     pub fn printTermSize(self: RawMode) !void {
         try self.print("{d}x{d}", .{ self.width, self.height });
@@ -124,5 +127,9 @@ pub const RawMode = struct {
     /// print to screen via fmt string
     pub fn print(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
         try self.tty.writer().print(fmt, args);
+    }
+    /// raw write
+    pub fn write(self: RawMode, buf: []const u8) !usize {
+        return try self.tty.write(buf);
     }
 };

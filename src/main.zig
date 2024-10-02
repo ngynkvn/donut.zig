@@ -29,13 +29,16 @@ pub fn main() !void {
 
     // Line test
     {
+        const rw: f32 = @floatFromInt(raw.width);
+        const rh: f32 = @floatFromInt(raw.height);
         var timer = try std.time.Timer.start();
-        try draw.line(&plot, .{ .x = 0, .y = @as(f32, @floatFromInt(raw.height)) - 0.1 }, .{ .x = @floatFromInt(raw.width), .y = @as(f32, @floatFromInt(raw.height)) - 0.1 });
-        try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 1) }, .{ .x = @floatFromInt(raw.width), .y = @floatFromInt(raw.height - 1) });
-        try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 2) }, .{ .x = @floatFromInt(raw.width), .y = @floatFromInt(raw.height - 2) });
+        try draw.line(&plot, .{ .x = 0, .y = rh - 0.1 }, .{ .x = rw, .y = rh - 0.1 });
+        try draw.line(&plot, .{ .x = 0, .y = rh - 1 }, .{ .x = rw, .y = rh - 1 });
+        try draw.line(&plot, .{ .x = 0, .y = rh - 2 }, .{ .x = rw, .y = rh - 2 });
         try raw.goto(0, raw.height);
         try raw.printTermSize();
         const elapsed: f32 = @floatFromInt(timer.lap());
+        try draw.box(raw, .{ .x = 5, .y = rh - 5 }, .{ .x = 10, .y = rh - 10 }, true);
         try raw.goto(0, 0);
         try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
     }

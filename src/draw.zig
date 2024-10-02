@@ -176,23 +176,43 @@ comptime {
         @compileError(&horiz ++ vert ++ " " ++ cornerdr ++ cornerdl ++ " " ++ cornerur ++ cornerul);
 }
 
-/// top left corner, bottom right corner
-pub fn box(raw: tty.RawMode, ptl: Point, pbr: Point) !void {
+pub fn box(raw: tty.RawMode, point_top_left: Point, point_bottom_right: Point, clear_middle: bool) !void {
+    const ptl = point_top_left;
+    const pbr = point_bottom_right;
     const x0: u16 = @intFromFloat(if (ptl.x < pbr.x) ptl.x else pbr.x);
     const x1: u16 = @intFromFloat(if (ptl.x < pbr.x) pbr.x else ptl.x);
     const y0: u16 = @intFromFloat(if (ptl.y < pbr.y) ptl.y else pbr.y);
     const y1: u16 = @intFromFloat(if (ptl.y < pbr.y) pbr.y else ptl.y);
-    for (x0..x1) |w| {
-        try raw.goto(w, y0);
-        _ = try raw.tty.write(&horiz);
-        try raw.goto(w, y1);
-        _ = try raw.tty.write(&horiz);
+    for ((x0 + 1)..x1) |x| {
+        for ([_]u16{ y0, y1 }) |y| {
+            try raw.print(tty.E.GOTO ++ horiz, raw.goto_args(x, y));
+        }
     }
-    for (y0..y1) |h| {
-        try raw.goto(x0, h);
-        _ = try raw.tty.write(&vert);
-        try raw.goto(x1, h);
-        _ = try raw.tty.write(&vert);
+    for ((y0 + 1)..y1) |y| {
+        for ([_]u16{ x0, x1 }) |x| {
+            try raw.print(tty.E.GOTO ++ vert, raw.goto_args(x, y));
+        }
+    }
+
+    // TODO: I think this is an example of `AoS`,
+    // which could be a `SoA` instead, small example tho
+    const corners = [4]struct { x: u16, y: u16, c: [3]u8 }{
+        .{ .x = x0, .y = y0, .c = cornerur },
+        .{ .x = x1, .y = y0, .c = cornerul },
+        .{ .x = x1, .y = y1, .c = cornerdl },
+        .{ .x = x0, .y = y1, .c = cornerdr },
+    };
+    for (corners) |cmd| {
+        const args = raw.goto_args(cmd.x, cmd.y);
+        try raw.print(tty.E.GOTO ++ "{s}", .{ args[0], args[1], cmd.c });
+    }
+    if (clear_middle) {
+        // for (y0..y1) |y| {
+        //     try raw.goto(x0, y);
+        //     for (0..(x1 - x0)) |_| {
+        //         _ = try raw.write(" ");
+        //     }
+        // }
     }
 }
 pub fn line(plt: *plotter.Plotter, a: Point, b: Point) !void {
