@@ -1,9 +1,6 @@
 const std = @import("std");
 const tty = @import("tty.zig");
 
-comptime {
-    @import("settings.zig").Check(Plotter);
-}
 // Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
     const Key = struct { i32, i32 };

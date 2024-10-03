@@ -25,6 +25,11 @@ pub const E = struct {
     pub const REPORT_CURSOR_POS = ESC ++ "6n";
     pub const CURSOR_INVISIBLE  = ESC ++ "?25l";
     pub const CURSOR_VISIBLE    = ESC ++ "?12;25h";
+    pub const CURSOR_DOWN       = "\x0a";
+    pub const CURSOR_LEFT       = "\x08";
+    pub const CURSOR_RIGHT      = ESC ++ "[C";
+    pub const CURSOR_UP         = ESC ++ "[A";
+    pub const CURSOR_SAVE_POS   = ESC ++ "7";
     /// setaf .{color}
     pub const SET_ANSI_FG       = ESC ++ "3{d}m";
     /// setab .{color}

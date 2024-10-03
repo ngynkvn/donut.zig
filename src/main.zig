@@ -38,9 +38,10 @@ pub fn main() !void {
         try raw.goto(0, raw.height);
         try raw.printTermSize();
         const elapsed: f32 = @floatFromInt(timer.lap());
-        try draw.box(raw, .{ .x = 5, .y = rh - 5 }, .{ .x = 10, .y = rh - 10 }, true);
-        try raw.goto(0, 0);
-        try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
+        try draw.box(raw, .{ .x = 5, .y = rh - 5 }, .{ .x = 80, .y = rh - 20 }, false);
+        try raw.goto(6, raw.height - 6);
+        try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
+        try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
     }
     std.Thread.sleep(std.time.ns_per_s * 10);
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm

@@ -207,12 +207,11 @@ pub fn box(raw: tty.RawMode, point_top_left: Point, point_bottom_right: Point, c
         try raw.print(tty.E.GOTO ++ "{s}", .{ args[0], args[1], cmd.c });
     }
     if (clear_middle) {
-        // for (y0..y1) |y| {
-        //     try raw.goto(x0, y);
-        //     for (0..(x1 - x0)) |_| {
-        //         _ = try raw.write(" ");
-        //     }
-        // }
+        for (y0 + 1..y1 - 1) |y| {
+            for (x0 + 1..x1) |x| {
+                try raw.print(tty.E.GOTO ++ " ", raw.goto_args(x, y));
+            }
+        }
     }
 }
 pub fn line(plt: *plotter.Plotter, a: Point, b: Point) !void {
