@@ -1,9 +1,10 @@
 const std = @import("std");
 const tty = @import("tty.zig");
 
+// TODO: does the plotter have to know about 3d?..
 // Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
-    const Key = struct { i32, i32 };
+    const Key = struct { i16, i16 };
     raw: tty.RawMode,
     buffer: std.AutoHashMap(Key, u8),
     pub fn init(allocator: std.mem.Allocator, raw: tty.RawMode) Plotter {
@@ -17,9 +18,18 @@ pub const Plotter = struct {
         self.buffer.clearRetainingCapacity();
     }
 
-    pub fn get(self: *Plotter, x: f32, y: f32) ![3]u8 {
+    pub const Components = packed struct(u32) { x: i12, sx: i4, y: i12, sy: i4 };
+    // Returns the key of x, y packed as a u64
+    pub fn components(x: f32, y: f32) Components {
+        const plotx: i12 = @intFromFloat(@trunc(x));
+        const ploty: i12 = @intFromFloat(@trunc(y));
+        const sx = @trunc(@mod(x, 1) * 2);
+        const sy = @trunc(@mod(y, 1) * 4);
+        return Components{ .x = plotx, .sx = @intFromFloat(sx), .y = ploty, .sy = @intFromFloat(sy) };
+    }
+    pub fn get(self: *Plotter, x: f32, y: f32) ?[3]u8 {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
-        if (try self.buffer.get(key)) |entry| {
+        if (self.buffer.get(key)) |entry| {
             return BraillePoint(entry.value_ptr.*);
         } else return null;
     }
@@ -28,10 +38,7 @@ pub const Plotter = struct {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
-        const result = try self.buffer.getOrPut(key);
-        if (!result.found_existing) {
-            result.value_ptr.* = 0;
-        }
+        const result = try self.buffer.getOrPutValue(key, 0);
         result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
         const plotx: u16 = @intFromFloat(@trunc(x));
         const ploty: u16 = @intFromFloat(@trunc(y));

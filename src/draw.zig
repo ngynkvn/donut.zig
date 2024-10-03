@@ -78,7 +78,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
-pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
+pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
     try raw.goto(0, raw.height - 6);
     try raw.print(E.CLEAR_DOWN, .{});
@@ -120,13 +120,17 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     const k2 = 5.0;
     const r1 = 1.0;
     const r2 = 3.0;
+
+    var zbuf = std.AutoHashMap(braille.Plotter.Components, f32).init(allocator);
+    defer zbuf.deinit();
+
     var t: f32 = 0.0;
     while (t < 2 * std.math.pi) : (t += 0.2) {
         var p: f32 = 0;
         while (p < 2 * std.math.pi) : (p += 0.1) {
             // So first, a circle.
             const cx: f32 = r2 + r1 * @cos(t);
-            const cy: f32 = (r1 * @sin(t));
+            const cy: f32 = r1 * @sin(t);
             // Then apply the rotation to form the torus and movement
             // zig fmt: off
             const sina: f32 = @sin(a); const sinb: f32 = @sin(b); const sinp: f32 = @sin(p);
@@ -134,19 +138,24 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             // zig fmt: on
             var x = cx * (cosb * cosp + sina * sinb * sinp) - (cy * cosa * sinb);
             var y = cx * (cosp * sinb - cosb * sina * sinp) + (cy * cosa * cosb);
-            const z = cosa * cx * sinp + (cy * sina);
-            x = (k1 * 2 * x) / (z + k2);
-            y = (k1 * y) / (z + k2);
+            const ooz = 1 / (k2 + cosa * cx * sinp + (cy * sina));
+            x = (k1 * 2 * x) * ooz;
+            y = (k1 * y) * ooz;
             const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
             const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
+
             try raw.print(E.HOME, .{});
             try raw.print( //
                 "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
                 "({d:>6.2},{d:>6.2},{d:>6.2})\r\n" ++
                 "({d:>6.2},{d:>6.2})", .{
-                raw.width, raw.height, t, p, x, y, z, plotx, ploty,
+                raw.width, raw.height, t, p, x, y, ooz, plotx, ploty,
             });
-            try plt.plot(plotx, ploty);
+            const comp = braille.Plotter.components(plotx, ploty);
+            const result = try zbuf.getOrPutValue(comp, ooz);
+            if (ooz >= result.value_ptr.*) {
+                try plt.plot(plotx, ploty);
+            }
         }
     }
 }

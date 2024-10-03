@@ -97,7 +97,7 @@ pub fn main() !void {
                     b -= 0.1;
                 }
             }
-            try draw.torus(&plot, raw, a, b);
+            try draw.torus(allocator, &plot, raw, a, b);
             try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
             try raw.goto(0, raw.height - 4);
             const elapsed: u64 = timer_frame.lap();
