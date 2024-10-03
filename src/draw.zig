@@ -121,13 +121,15 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
     const r1 = 1.0;
     const r2 = 3.0;
 
-    var zbuf = std.AutoHashMap(braille.Plotter.Components, f32).init(allocator);
-    defer zbuf.deinit();
+    var zbuf = std.AutoHashMapUnmanaged(braille.Plotter.Components, f32).empty;
+    defer zbuf.deinit(allocator);
+    var npoints: usize = 0;
+    var noverlaps: usize = 0;
 
     var t: f32 = 0.0;
     while (t < 2 * std.math.pi) : (t += 0.2) {
         var p: f32 = 0;
-        while (p < 2 * std.math.pi) : (p += 0.1) {
+        while (p < 2 * std.math.pi) : (p += 0.05) {
             // So first, a circle.
             const cx: f32 = r2 + r1 * @cos(t);
             const cy: f32 = r1 * @sin(t);
@@ -144,20 +146,25 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
             const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
             const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
 
+            const key = braille.Plotter.components(plotx, ploty);
+            const result = try zbuf.getOrPutValue(allocator, key, ooz);
+            npoints += 1;
+            if (ooz >= result.value_ptr.*) {
+                noverlaps += 1;
+                try plt.plot(plotx, ploty);
+                result.value_ptr.* = ooz;
+            }
+
             try raw.print(E.HOME, .{});
             try raw.print( //
                 "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
                 "({d:>6.2},{d:>6.2},{d:>6.2})\r\n" ++
                 "({d:>6.2},{d:>6.2})", .{
-                raw.width, raw.height, t, p, x, y, ooz, plotx, ploty,
+                raw.width, raw.height, t, p, x, y, ooz, @as(u16, @intFromFloat(plotx)), @as(u16, @intFromFloat(ploty)),
             });
-            const comp = braille.Plotter.components(plotx, ploty);
-            const result = try zbuf.getOrPutValue(comp, ooz);
-            if (ooz >= result.value_ptr.*) {
-                try plt.plot(plotx, ploty);
-            }
         }
     }
+    try raw.print("checks: {d:>4}, overlaps: {d:>4}, zbug.size: {d:>4}", .{ npoints, noverlaps, zbuf.size });
 }
 
 const M = @This();

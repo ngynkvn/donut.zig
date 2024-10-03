@@ -109,7 +109,7 @@ pub fn main() !void {
                 sum += (@as(f32, @floatFromInt(t)) / 32);
             }
             try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
-            std.Thread.sleep(16 * std.time.ns_per_ms);
+            std.Thread.sleep(160 * std.time.ns_per_ms);
         }
     }
 }

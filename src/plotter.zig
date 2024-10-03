@@ -8,6 +8,11 @@ pub const Plotter = union(enum) {
             inline else => |plt| return plt.plot(x, y),
         };
     }
+    pub fn erase(self: Plotter, x: f32, y: f32) !void {
+        return switch (self) {
+            .braille => |plt| return plt.erase(x, y),
+        };
+    }
     pub fn deinit(self: Plotter) void {
         return switch (self) {
             inline else => |impl| impl.deinit(),

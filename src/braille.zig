@@ -34,14 +34,25 @@ pub const Plotter = struct {
         } else return null;
     }
 
+    pub fn erase(self: *Plotter, x: f32, y: f32) !void {
+        const key = Key{ @intFromFloat(x), @intFromFloat(y) };
+        const sx = @trunc(@mod(x, 1) * 2);
+        const sy = @trunc(@mod(y, 1) * 4);
+        const result = try self.buffer.getOrPutValue(key, 0);
+        result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
+        const plotx: u16 = @intFromFloat(x);
+        const ploty: u16 = @intFromFloat(y);
+        try self.raw.print(tty.E.GOTO ++ " ", .{ self.raw.height - ploty, plotx });
+    }
+
     pub fn plot(self: *Plotter, x: f32, y: f32) !void {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
         const result = try self.buffer.getOrPutValue(key, 0);
         result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
-        const plotx: u16 = @intFromFloat(@trunc(x));
-        const ploty: u16 = @intFromFloat(@trunc(y));
+        const plotx: u16 = @intFromFloat(x);
+        const ploty: u16 = @intFromFloat(y);
         try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
     }
 };
@@ -75,6 +86,13 @@ pub fn set_bbit(braille_bit: u8, xi: u1, yi: u2) u8 {
     const y = @as(u3, yi);
     const pos = (y ^ 3) + x * 3 + (mask | mask << (~xi & 1));
     return braille_bit | (@as(u8, 1) << @truncate(pos));
+}
+pub fn unset_bbit(braille_bit: u8, xi: u1, yi: u2) u8 {
+    const mask: u3 = ~(yi | yi >> 1) & 1;
+    const x = @as(u3, xi);
+    const y = @as(u3, yi);
+    const pos = (y ^ 3) + x * 3 + (mask | mask << (~xi & 1));
+    return ~braille_bit & (@as(u8, 1) << @truncate(pos));
 }
 
 pub fn BraillePoint(point: u8) [3]u8 {
