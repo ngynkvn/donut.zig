@@ -87,10 +87,12 @@ pub const BRAILLE_TABLE: [256][3]u8 = ret: {
 };
 
 ///Set a u8 representing a braille code as a bitmap
-///    0 3 -> 03 13 | 000 011
-///    1 4 -> 02 12 | 001 100
-///    2 5 -> 01 11 | 010 101
-///    6 7 -> 00 10 | 110 111
+///    |  i  |  xy   |   u8    |
+///    | :-: | :---: | :-----: |
+///    | 0 3 | 03 13 | 000 011 |
+///    | 1 4 | 02 12 | 001 100 |
+///    | 2 5 | 01 11 | 010 101 |
+///    | 6 7 | 00 10 | 110 111 |
 pub fn set_bbit(braille_bit: u8, xi: u1, yi: u2) u8 {
     const mask: u3 = ~(yi | yi >> 1) & 1;
     const x = @as(u3, xi);
