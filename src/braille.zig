@@ -7,8 +7,15 @@ pub const Plotter = struct {
     const Key = struct { i16, i16 };
     raw: tty.RawMode,
     buffer: std.AutoHashMap(Key, u8),
+    width: f32 = 0,
+    height: f32 = 0,
     pub fn init(allocator: std.mem.Allocator, raw: tty.RawMode) Plotter {
-        return Plotter{ .raw = raw, .buffer = std.AutoHashMap(Key, u8).init(allocator) };
+        return Plotter{
+            .raw = raw,
+            .buffer = std.AutoHashMap(Key, u8).init(allocator),
+            .width = @floatFromInt(raw.width),
+            .height = @floatFromInt(raw.height),
+        };
     }
     pub fn deinit(self: *Plotter) void {
         self.buffer.deinit();
@@ -49,11 +56,15 @@ pub const Plotter = struct {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
+        // NOTE: explore vectors
         const result = try self.buffer.getOrPutValue(key, 0);
         result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
-        const plotx: u16 = @intFromFloat(x);
-        const ploty: u16 = @intFromFloat(y);
+        const plotx: u16 = @intFromFloat(@trunc(@mod(x, self.width)));
+        const ploty: u16 = @intFromFloat(@trunc(@mod(y, self.height)));
         try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
+        // Also mark on edges
+        try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, 0, BraillePoint(result.value_ptr.*) });
+        try self.raw.print(tty.E.GOTO ++ "{s}", .{ 0, plotx, BraillePoint(result.value_ptr.*) });
     }
 };
 

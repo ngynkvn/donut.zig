@@ -116,27 +116,36 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
         // Then we just repeat this for the other [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations)
     }
 
-    const k1 = 8.0;
-    const k2 = 5.0;
-    const r1 = 1.0;
-    const r2 = 3.0;
+    // TODO: keymap
+    const k1 = 10.0;
+    const k2 = 8.0;
+    // TODO: keymap
+    const r1 = 2.0;
+    const r2 = 4.0;
 
     var zbuf = std.AutoHashMapUnmanaged(braille.Plotter.Components, f32).empty;
     defer zbuf.deinit(allocator);
     var npoints: usize = 0;
-    var noverlaps: usize = 0;
+    npoints = 0;
+    var ndraws: usize = 0;
+    ndraws = 0;
 
     var t: f32 = 0.0;
-    while (t < 2 * std.math.pi) : (t += 0.2) {
+    // TODO: keymap
+    while (t < 2 * std.math.pi) : (t += 0.4) {
         var p: f32 = 0;
-        while (p < 2 * std.math.pi) : (p += 0.05) {
+        const sint: f32 = @sin(t);
+        const cost: f32 = @cos(t);
+        // TODO: keymap
+        std.time.sleep(2999999);
+        while (p < 2 * std.math.pi) : (p += 0.14) {
             // So first, a circle.
-            const cx: f32 = r2 + r1 * @cos(t);
+            const cx: f32 = (r2 + r1 * @cos(t));
             const cy: f32 = r1 * @sin(t);
             // Then apply the rotation to form the torus and movement
             // zig fmt: off
-            const sina: f32 = @sin(a); const sinb: f32 = @sin(b); const sinp: f32 = @sin(p);
-            const cosa: f32 = @cos(a); const cosb: f32 = @cos(b); const cosp: f32 = @cos(p);
+            const sina: f32 = @sin(a); const sinb: f32 = @sin(b); const sinp: f32 = @sin(p); 
+            const cosa: f32 = @cos(a); const cosb: f32 = @cos(b); const cosp: f32 = @cos(p); 
             // zig fmt: on
             var x = cx * (cosb * cosp + sina * sinb * sinp) - (cy * cosa * sinb);
             var y = cx * (cosp * sinb - cosb * sina * sinp) + (cy * cosa * cosb);
@@ -145,26 +154,33 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
             y = (k1 * y) * ooz;
             const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
             const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
-
-            const key = braille.Plotter.components(plotx, ploty);
-            const result = try zbuf.getOrPutValue(allocator, key, ooz);
             npoints += 1;
-            if (ooz >= result.value_ptr.*) {
-                noverlaps += 1;
+            const key = braille.Plotter.components(x, y);
+            const result = try zbuf.getOrPutValue(allocator, key, 0);
+            // calculate luminance.  ugly, but correct.
+            const L = cosp * cost * sinb - cosa * cost * sinp -
+                sina * sint + cosb * (cosa * sint - cost * sina * sinp);
+            if (L > 0) {
+                // if (1/z) is larger, it's closer
+                //if (ooz >= result.value_ptr.*) {
+                ndraws += 1;
                 try plt.plot(plotx, ploty);
                 result.value_ptr.* = ooz;
+                //}
             }
-
+            const ux: u16 = @intFromFloat(@mod(x, plt.width));
+            const uy: u16 = @intFromFloat(@mod(y, plt.height));
             try raw.print(E.HOME, .{});
             try raw.print( //
-                "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
+                "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4}, b={d:>4}\r\n" ++
                 "({d:>6.2},{d:>6.2},{d:>6.2})\r\n" ++
                 "({d:>6.2},{d:>6.2})", .{
-                raw.width, raw.height, t, p, x, y, ooz, @as(u16, @intFromFloat(plotx)), @as(u16, @intFromFloat(ploty)),
+                raw.width, raw.height, t,   p,  a,  b,
+                x,         y,          ooz, ux, uy,
             });
         }
     }
-    try raw.print("checks: {d:>4}, overlaps: {d:>4}, zbug.size: {d:>4}", .{ npoints, noverlaps, zbuf.size });
+    try raw.print("checks: {d:>4}, overlaps: {d:>4}, zbug.size: {d:>4}", .{ npoints, ndraws, zbuf.size });
 }
 
 const M = @This();

@@ -34,6 +34,8 @@ pub const E = struct {
     pub const SET_ANSI_FG       = ESC ++ "3{d}m";
     /// setab .{color}
     pub const SET_ANSI_BG       = ESC ++ "4{d}m";
+    /// set true color (rgb)
+    pub const SET_TRUCOLOR =  ESC ++ "38;2;{};{};{}m";
     pub const RESET_COLORS      = ESC ++ "m";
 };
 // zig fmt: on

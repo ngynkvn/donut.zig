@@ -20,8 +20,7 @@ fn callFn(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, first_t
     @branchHint(.cold);
     if (rawterm) |term| {
         @branchHint(.likely);
-        //        _ = term.write(tty.E.CLEAR_SCREEN ++ tty.E.HOME, .{}) catch void;
-        _ = term.restore() catch void;
+        _ = term.restore() catch unreachable;
     }
     std.debug.defaultPanic(msg, error_return_trace, first_trace_addr);
 }

@@ -24,7 +24,8 @@ pub fn main() !void {
             @panic("no good");
         }
     }
-    var plot = plotter.Plotter{ .braille = @constCast(&braille.Plotter.init(allocator, raw)) };
+    // var plot = plotter.Plotter{ .braille = @constCast(&braille.Plotter.init(allocator, raw)) };
+    var plot = braille.Plotter.init(allocator, raw);
     defer plot.deinit();
 
     // Line test
@@ -63,7 +64,8 @@ pub fn main() !void {
 
     {
         var a: f32 = 0.0;
-        var b: f32 = 0.0;
+        var b: f32 = -0.4;
+        var paused = false;
         var buffer: [128]u8 = undefined;
         var frame_times: [32]u64 = .{0} ** 32;
         var frame: usize = 0;
@@ -96,6 +98,14 @@ pub fn main() !void {
                     a += 0.1;
                     b -= 0.1;
                 }
+                // pause
+                if (std.mem.eql(u8, read, "p")) {
+                    paused = !paused;
+                }
+            }
+            if (paused) {
+                std.Thread.sleep(200 * std.time.ns_per_ms);
+                continue;
             }
             try draw.torus(allocator, &plot, raw, a, b);
             try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
@@ -109,7 +119,6 @@ pub fn main() !void {
                 sum += (@as(f32, @floatFromInt(t)) / 32);
             }
             try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
-            std.Thread.sleep(160 * std.time.ns_per_ms);
         }
     }
 }
