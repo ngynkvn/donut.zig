@@ -121,9 +121,9 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     const r1 = 1.0;
     const r2 = 3.0;
     var t: f32 = 0.0;
-    while (t < 2 * std.math.pi) : (t += 0.3) {
+    while (t < 2 * std.math.pi) : (t += 0.2) {
         var p: f32 = 0;
-        while (p < 2 * std.math.pi) : (p += 0.2) {
+        while (p < 2 * std.math.pi) : (p += 0.1) {
             // So first, a circle.
             const cx: f32 = r2 + r1 * @cos(t);
             const cy: f32 = (r1 * @sin(t));

@@ -43,7 +43,6 @@ pub fn main() !void {
         try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
         try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
     }
-    std.Thread.sleep(std.time.ns_per_s * 10);
     // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
     {
         var timer = try std.time.Timer.start();
@@ -74,18 +73,33 @@ pub fn main() !void {
         while (true) {
             if (timer_read.read() > std.time.ns_per_ms * 100) {
                 const n = try raw.read(&buffer);
-                if (std.mem.eql(u8, buffer[0..n], "\r")) {
+                const read = buffer[0..n];
+                if (std.mem.eql(u8, read, "\r")) {
                     return;
                 }
-                if (std.mem.eql(u8, buffer[0..n], "\x03")) { // <C-c>
+                if (std.mem.eql(u8, read, "\x03")) { // <C-c>
                     return;
+                }
+                if (std.mem.eql(u8, read, "h")) {
+                    a -= 0.1;
+                    b += 0.1;
+                }
+                if (std.mem.eql(u8, read, "j")) {
+                    a += 0.1;
+                    b += 0.1;
+                }
+                if (std.mem.eql(u8, read, "k")) {
+                    a -= 0.1;
+                    b -= 0.1;
+                }
+                if (std.mem.eql(u8, read, "l")) {
+                    a += 0.1;
+                    b -= 0.1;
                 }
             }
             try draw.torus(&plot, raw, a, b);
             try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
             try raw.goto(0, raw.height - 4);
-            a += 0.05;
-            b += 0.02;
             const elapsed: u64 = timer_frame.lap();
             frame_times[frame] = elapsed;
             frame = (frame + 1) % 32;
