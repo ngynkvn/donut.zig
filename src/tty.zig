@@ -13,7 +13,8 @@ pub const TTY_HANDLE = "/dev/tty";
 pub const E = struct {
     /// escape code prefix
     pub const ESC = "\x1b[";
-    /// goto .{x, y}
+    pub const HOME              = ESC ++ "H";
+    /// goto .{y, x}
     pub const GOTO              = ESC ++ "{d};{d}H";
     pub const CLEAR_LINE        = ESC ++ "K";
     pub const CLEAR_DOWN        = ESC ++ "0J";
@@ -24,8 +25,17 @@ pub const E = struct {
     pub const REPORT_CURSOR_POS = ESC ++ "6n";
     pub const CURSOR_INVISIBLE  = ESC ++ "?25l";
     pub const CURSOR_VISIBLE    = ESC ++ "?12;25h";
+    pub const CURSOR_DOWN       = "\x0a";
+    pub const CURSOR_LEFT       = "\x08";
+    pub const CURSOR_RIGHT      = ESC ++ "[C";
+    pub const CURSOR_UP         = ESC ++ "[A";
+    pub const CURSOR_SAVE_POS   = ESC ++ "7";
     /// setaf .{color}
     pub const SET_ANSI_FG       = ESC ++ "3{d}m";
+    /// setab .{color}
+    pub const SET_ANSI_BG       = ESC ++ "4{d}m";
+    /// set true color (rgb)
+    pub const SET_TRUCOLOR =  ESC ++ "38;2;{};{};{}m";
     pub const RESET_COLORS      = ESC ++ "m";
 };
 // zig fmt: on
@@ -64,7 +74,7 @@ pub const RawMode = struct {
         raw.cflag.CSIZE  = .CS8;
 
         raw.cc[@intFromEnum(system.V.MIN)]  = 0; // min bytes required for read
-        raw.cc[@intFromEnum(system.V.TIME)] = 1; // min time to wait for response, 100ms per unit
+        raw.cc[@intFromEnum(system.V.TIME)] = 0; // min time to wait for response, 100ms per unit
         // zig fmt: on
 
         const rc = system.tcsetattr(tty.handle, .FLUSH, &raw);
@@ -80,12 +90,15 @@ pub const RawMode = struct {
         const height = ws.row;
         std.log.debug("ws is {}x{}\n", .{ width, height });
         _ = try tty.write(E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE);
-        return .{
+        const term = .{
             .orig_termios = orig_termios,
             .tty = tty,
             .width = width,
             .height = height,
         };
+        // Hook into panic so we can restore terminal state
+        @import("panic.zig").rawterm = term;
+        return term;
     }
     pub fn restore(self: RawMode) !posix.E {
         _ = try self.tty.write(E.EXIT_ALT_SCREEN ++ E.CURSOR_VISIBLE);
@@ -95,7 +108,13 @@ pub const RawMode = struct {
     /// Move cursor to (x, y) (column, row)
     /// (0, 0) is defined as the bottom left corner of the terminal.
     pub fn goto(self: RawMode, x: usize, y: usize) !void {
-        try self.write(E.GOTO, .{ self.height - y, x });
+        try self.print(E.GOTO, self.goto_args(x, y));
+    }
+    pub fn goto_args(self: RawMode, x: usize, y: usize) struct { usize, usize } {
+        return .{ self.height - y, x };
+    }
+    pub fn printTermSize(self: RawMode) !void {
+        try self.print("{d}x{d}", .{ self.width, self.height });
     }
     pub fn query(self: RawMode) !CursorPos {
         _ = try self.tty.write(E.REPORT_CURSOR_POS);
@@ -112,8 +131,12 @@ pub const RawMode = struct {
     pub fn read(self: RawMode, buffer: []u8) !usize {
         return self.tty.read(buffer);
     }
-    /// write to screen via fmt string
-    pub fn write(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
+    /// print to screen via fmt string
+    pub fn print(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
         try self.tty.writer().print(fmt, args);
+    }
+    /// raw write
+    pub fn write(self: RawMode, buf: []const u8) !usize {
+        return try self.tty.write(buf);
     }
 };
