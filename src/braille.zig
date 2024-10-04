@@ -25,15 +25,6 @@ pub const Plotter = struct {
         self.buffer.clearRetainingCapacity();
     }
 
-    pub const Components = packed struct(u32) { x: i12, sx: i4, y: i12, sy: i4 };
-    // Returns the key of x, y packed as a u64
-    pub fn get(self: *Plotter, x: f32, y: f32) ?[3]u8 {
-        const key = Key{ @intFromFloat(x), @intFromFloat(y) };
-        if (self.buffer.get(key)) |entry| {
-            return BraillePoint(entry.value_ptr.*);
-        } else return null;
-    }
-
     pub fn erase(self: *Plotter, x: f32, y: f32) !void {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
