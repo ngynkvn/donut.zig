@@ -112,15 +112,18 @@ pub fn main() !void {
                 }
             }
             if (paused) {
-                std.Thread.sleep(200 * std.time.ns_per_ms);
-                continue;
+                std.Thread.sleep(100 * std.time.ns_per_ms);
+            } else {
+                dirty = true;
+                a += 0.05;
+                b += 0.02;
             }
             if (dirty) {
                 var timer_frame = try std.time.Timer.start();
                 try draw.torus(&plot, raw, a, b);
                 try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
                 try raw.goto(0, raw.height - 4);
-                const elapsed: u64 = timer_frame.lap();
+                const elapsed: u64 = timer_frame.read();
                 frame_times[frame] = elapsed;
                 frame = (frame + 1) % 32;
 
@@ -129,7 +132,6 @@ pub fn main() !void {
                     sum += (@as(f32, @floatFromInt(t)) / 32);
                 }
                 try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
-                _ = timer_frame.lap();
                 dirty = false;
             }
         }
