@@ -176,7 +176,7 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             });
         }
     }
-    try raw.print("checks: {d:>4}, overlaps: {d:>4}, zbug.size: {d:>4}", .{ npoints, ndraws });
+    try raw.print("checks: {d:>4}, overlaps: {d:>4}", .{ npoints, ndraws });
 }
 
 const M = @This();
