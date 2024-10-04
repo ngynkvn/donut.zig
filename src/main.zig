@@ -133,6 +133,7 @@ pub fn main() !void {
                 }
                 try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
                 dirty = false;
+                while (timer_frame.read() < std.time.ns_per_ms * 17) {}
             }
         }
     }
