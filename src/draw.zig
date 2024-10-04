@@ -78,7 +78,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
-pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
+pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
     try raw.goto(0, raw.height - 6);
     try raw.print(E.CLEAR_DOWN, .{});
@@ -123,8 +123,6 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
     const r1 = 2.0;
     const r2 = 4.0;
 
-    var zbuf = std.AutoHashMapUnmanaged(braille.Plotter.Components, f32).empty;
-    defer zbuf.deinit(allocator);
     var npoints: usize = 0;
     npoints = 0;
     var ndraws: usize = 0;
@@ -132,13 +130,13 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
 
     var t: f32 = 0.0;
     // TODO: keymap
-    while (t < 2 * std.math.pi) : (t += 0.4) {
+    while (t < 2 * std.math.pi) : (t += 0.2) {
         var p: f32 = 0;
         const sint: f32 = @sin(t);
         const cost: f32 = @cos(t);
         // TODO: keymap
         std.time.sleep(2999999);
-        while (p < 2 * std.math.pi) : (p += 0.14) {
+        while (p < 2 * std.math.pi) : (p += 0.2) {
             // So first, a circle.
             const cx: f32 = (r2 + r1 * @cos(t));
             const cy: f32 = r1 * @sin(t);
@@ -155,19 +153,17 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
             const plotx = x + @as(f32, @floatFromInt(raw.width)) / 2;
             const ploty = y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
             npoints += 1;
-            const key = braille.Plotter.components(x, y);
-            const result = try zbuf.getOrPutValue(allocator, key, 0);
             // calculate luminance.  ugly, but correct.
             const L = cosp * cost * sinb - cosa * cost * sinp -
                 sina * sint + cosb * (cosa * sint - cost * sina * sinp);
+
             if (L > 0) {
-                // if (1/z) is larger, it's closer
-                //if (ooz >= result.value_ptr.*) {
-                ndraws += 1;
-                try plt.plot(plotx, ploty);
-                result.value_ptr.* = ooz;
-                //}
+                try raw.print(E.SET_ANSI_FG, .{1});
+            } else {
+                try raw.print(E.SET_ANSI_FG, .{3});
             }
+            ndraws += 1;
+            try plt.plot(plotx, ploty);
             const ux: u16 = @intFromFloat(@mod(x, plt.width));
             const uy: u16 = @intFromFloat(@mod(y, plt.height));
             try raw.print(E.HOME, .{});
@@ -180,7 +176,7 @@ pub fn torus(allocator: std.mem.Allocator, plt: *plotter.Plotter, raw: tty.RawMo
             });
         }
     }
-    try raw.print("checks: {d:>4}, overlaps: {d:>4}, zbug.size: {d:>4}", .{ npoints, ndraws, zbuf.size });
+    try raw.print("checks: {d:>4}, overlaps: {d:>4}, zbug.size: {d:>4}", .{ npoints, ndraws });
 }
 
 const M = @This();

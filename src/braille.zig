@@ -27,13 +27,6 @@ pub const Plotter = struct {
 
     pub const Components = packed struct(u32) { x: i12, sx: i4, y: i12, sy: i4 };
     // Returns the key of x, y packed as a u64
-    pub fn components(x: f32, y: f32) Components {
-        const plotx: i12 = @intFromFloat(@trunc(x));
-        const ploty: i12 = @intFromFloat(@trunc(y));
-        const sx = @trunc(@mod(x, 1) * 2);
-        const sy = @trunc(@mod(y, 1) * 4);
-        return Components{ .x = plotx, .sx = @intFromFloat(sx), .y = ploty, .sy = @intFromFloat(sy) };
-    }
     pub fn get(self: *Plotter, x: f32, y: f32) ?[3]u8 {
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         if (self.buffer.get(key)) |entry| {
@@ -46,7 +39,7 @@ pub const Plotter = struct {
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
         const result = try self.buffer.getOrPutValue(key, 0);
-        result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
+        result.value_ptr.* = unset_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
         const plotx: u16 = @intFromFloat(x);
         const ploty: u16 = @intFromFloat(y);
         try self.raw.print(tty.E.GOTO ++ " ", .{ self.raw.height - ploty, plotx });

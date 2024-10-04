@@ -67,36 +67,44 @@ pub fn main() !void {
         var b: f32 = -0.4;
         var paused = false;
         var buffer: [128]u8 = undefined;
+        var bufferlen: usize = 0;
         var frame_times: [32]u64 = .{0} ** 32;
         var frame: usize = 0;
-        try raw.print(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{2});
+        var dirty = true;
+        try raw.print(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{3});
         var timer_read = try std.time.Timer.start();
-        var timer_frame = try std.time.Timer.start();
         while (true) {
             if (timer_read.read() > std.time.ns_per_ms * 100) {
                 const n = try raw.read(&buffer);
+                bufferlen = 0;
                 const read = buffer[0..n];
-                if (std.mem.eql(u8, read, "\r")) {
+                try raw.goto(raw.width - 30, raw.height);
+                try raw.print("CURRENT_BUFFER={}", .{n});
+                if (std.mem.startsWith(u8, read, "\r")) {
                     return;
                 }
-                if (std.mem.eql(u8, read, "\x03")) { // <C-c>
+                if (std.mem.startsWith(u8, read, "\x03")) { // <C-c>
                     return;
                 }
-                if (std.mem.eql(u8, read, "h")) {
+                if (std.mem.startsWith(u8, read, "h")) {
                     a -= 0.1;
+                    b += 0.0;
+                    dirty = true;
+                }
+                if (std.mem.startsWith(u8, read, "j")) {
+                    a += 0.0;
                     b += 0.1;
+                    dirty = true;
                 }
-                if (std.mem.eql(u8, read, "j")) {
-                    a += 0.1;
-                    b += 0.1;
-                }
-                if (std.mem.eql(u8, read, "k")) {
-                    a -= 0.1;
+                if (std.mem.startsWith(u8, read, "k")) {
+                    a -= 0.0;
                     b -= 0.1;
+                    dirty = true;
                 }
-                if (std.mem.eql(u8, read, "l")) {
+                if (std.mem.startsWith(u8, read, "l")) {
                     a += 0.1;
-                    b -= 0.1;
+                    b -= 0.0;
+                    dirty = true;
                 }
                 // pause
                 if (std.mem.eql(u8, read, "p")) {
@@ -107,18 +115,23 @@ pub fn main() !void {
                 std.Thread.sleep(200 * std.time.ns_per_ms);
                 continue;
             }
-            try draw.torus(allocator, &plot, raw, a, b);
-            try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
-            try raw.goto(0, raw.height - 4);
-            const elapsed: u64 = timer_frame.lap();
-            frame_times[frame] = elapsed;
-            frame = (frame + 1) % 32;
+            if (dirty) {
+                var timer_frame = try std.time.Timer.start();
+                try draw.torus(&plot, raw, a, b);
+                try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 5) }, .{ .x = 36, .y = @floatFromInt(raw.height - 5) });
+                try raw.goto(0, raw.height - 4);
+                const elapsed: u64 = timer_frame.lap();
+                frame_times[frame] = elapsed;
+                frame = (frame + 1) % 32;
 
-            var sum: f32 = 0;
-            for (frame_times) |t| {
-                sum += (@as(f32, @floatFromInt(t)) / 32);
+                var sum: f32 = 0;
+                for (frame_times) |t| {
+                    sum += (@as(f32, @floatFromInt(t)) / 32);
+                }
+                try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
+                _ = timer_frame.lap();
+                dirty = false;
             }
-            try raw.print("avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
         }
     }
 }
