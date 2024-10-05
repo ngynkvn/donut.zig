@@ -3,14 +3,13 @@ const std = @import("std");
 const posix = std.posix;
 const system = posix.system;
 
-pub const TTY_HANDLE = "/dev/tty";
-
 pub const CONFIG = .{
     .SLOWDOWN = std.time.ns_per_ms * 0,
     // Disable tty's SIGINT handling,
     .HANDLE_SIGINT = true,
     .START_SEQUENCE = E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE,
     .EXIT_SEQUENCE = E.EXIT_ALT_SCREEN ++ E.CURSOR_VISIBLE,
+    .TTY_HANDLE = "/dev/tty",
 };
 
 /// vt100 / xterm escape sequences
@@ -99,7 +98,7 @@ pub const RawMode = struct {
 
         const width = ws.col;
         const height = ws.row;
-        std.log.debug("ws is {}x{}\n", .{ width, height });
+        std.log.debug("windowsize is {}x{}", .{ width, height });
         // TODO: reenable later
         _ = try tty.write(CONFIG.START_SEQUENCE);
         const term = .{

@@ -215,7 +215,7 @@ pub fn curve(plt: *plotter.Plotter, p0: Point, p1: Point, p2: Point) !void {
 
 /// lerp does a linear interpolation
 pub fn lerp(t: f32, x1: f32, x2: f32) f32 {
-    return (x1 * t) + x2 * (1 - t);
+    return (x1 * (1 - t)) + x2 * t;
 }
 
 const Projection = struct { x: f32, y: f32, L: f32 };

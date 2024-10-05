@@ -2,7 +2,7 @@ const std = @import("std");
 const tty = @import("tty.zig");
 
 // TODO: does the plotter have to know about 3d?..
-// Plotter allows for drawing to a terminal using braille characters.
+/// Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
     const Key = struct { i16, i16 };
     raw: tty.RawMode,
@@ -30,7 +30,7 @@ pub const Plotter = struct {
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
         const result = try self.buffer.getOrPutValue(key, 0);
-        result.value_ptr.* = unset_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
+        result.value_ptr.* = unsetBbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
         const plotx: u16 = @intFromFloat(x);
         const ploty: u16 = @intFromFloat(y);
         try self.raw.print(tty.E.GOTO ++ " ", .{ self.raw.height - ploty, plotx });
@@ -42,7 +42,7 @@ pub const Plotter = struct {
         const sy = @trunc(@mod(y, 1) * 4);
         // NOTE: explore vectors
         const result = try self.buffer.getOrPutValue(key, 0);
-        result.value_ptr.* = set_bbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
+        result.value_ptr.* = setBbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
         const plotx: u16 = @intFromFloat(@trunc(@mod(x, self.width)));
         const ploty: u16 = @intFromFloat(@trunc(@mod(y, self.height)));
         try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
@@ -77,14 +77,14 @@ pub const BRAILLE_TABLE: [256][3]u8 = ret: {
 ///    | 1 4 | 02 12 | 001 100 |
 ///    | 2 5 | 01 11 | 010 101 |
 ///    | 6 7 | 00 10 | 110 111 |
-pub fn set_bbit(braille_bit: u8, xi: u1, yi: u2) u8 {
+pub fn setBbit(braille_bit: u8, xi: u1, yi: u2) u8 {
     const mask: u3 = ~(yi | yi >> 1) & 1;
     const x = @as(u3, xi);
     const y = @as(u3, yi);
     const pos = (y ^ 3) + x * 3 + (mask | mask << (~xi & 1));
     return braille_bit | (@as(u8, 1) << @truncate(pos));
 }
-pub fn unset_bbit(braille_bit: u8, xi: u1, yi: u2) u8 {
+pub fn unsetBbit(braille_bit: u8, xi: u1, yi: u2) u8 {
     const mask: u3 = ~(yi | yi >> 1) & 1;
     const x = @as(u3, xi);
     const y = @as(u3, yi);
@@ -104,19 +104,19 @@ test "braille accessor" {
     {
         try std.testing.expectEqual(
             0b0100_0000,
-            set_bbit(0, 0, 0),
+            setBbit(0, 0, 0),
         );
         try std.testing.expectEqual(
             0b1000_0000,
-            set_bbit(0, 1, 0),
+            setBbit(0, 1, 0),
         );
         try std.testing.expectEqual(
             0b0100_0000,
-            set_bbit(0, 0, 0),
+            setBbit(0, 0, 0),
         );
         try std.testing.expectEqual(
             0b0000_1000,
-            set_bbit(0, 1, 3),
+            setBbit(0, 1, 3),
         );
     }
 }
