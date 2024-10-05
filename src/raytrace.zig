@@ -11,8 +11,8 @@ pub const Point = @Vector(3, f32);
 /// https://raytracing.github.io/books/RayTracingInOneWeekend.html#rays,asimplecamera,andbackground
 const CONFIG = .{
     .SPHERE = .{
-        .CENTER = Point{ 2.5, -1, -3.0 },
-        .RADIUS = Point{ 0.5, 0.5, 0.5 },
+        .CENTER = Point{ 0.0, 0.0, -5.0 },
+        .RADIUS = Point{ 1, 1, 1 },
     },
     .CAMERA = .{
         .EYE = Point{ 0.0, 0.0, 0.0 },
@@ -39,10 +39,8 @@ pub const Plotter = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator, raw: tty.RawMode) Plotter {
-        const w: f32 = @floatFromInt(raw.width * SCALEX);
-        const h: f32 = @floatFromInt(raw.height * SCALEY);
-        const vw = (w / h);
-        const vh = 2.0;
+        const vw = 2;
+        const vh = 1;
         return Plotter{
             .raw = raw,
             .buffer = std.AutoHashMap(Key, u8).init(allocator),
@@ -88,13 +86,18 @@ pub fn sphere(plt: *Plotter, raw: tty.RawMode) !void {
     const vu = Point{ plt.vw, 0, 0 };
     const vv = Point{ 0, -plt.vh, 0 };
     const du = scaled(vu, 1.0 / @as(f32, @floatFromInt(plt.width)));
-    const dv = scaled(vv, 1.0 / @as(f32, @floatFromInt(plt.width)));
-    _ = raw;
+    const dv = scaled(vv, 1.0 / @as(f32, @floatFromInt(plt.height)));
     //Iterate over subpixels
-    for (1..plt.width) |x| {
-        const px = scaled(du, @floatFromInt(x));
-        for (1..plt.height) |y| {
-            const py = scaled(dv, @floatFromInt(y));
+    for (0..plt.width) |x| {
+        const ix: f32 = @floatFromInt(x);
+        // NOTE:
+        // The offset is to make it so (0, 0) is defined as the middle of our screen
+        const offsetx: f32 = @floatFromInt(plt.width / 2);
+        const px = scaled(du, ix - offsetx);
+        for (0..plt.height) |y| {
+            const iy: f32 = @floatFromInt(y);
+            const offsety: f32 = @floatFromInt(plt.height / 2);
+            const py = scaled(dv, iy - offsety);
             const pixel = px + py;
             const rayDir = pixel - CONFIG.CAMERA.EYE + CONFIG.CAMERA.LOOK;
             const rayOrigin = CONFIG.CAMERA.EYE;
@@ -104,7 +107,9 @@ pub fn sphere(plt: *Plotter, raw: tty.RawMode) !void {
             const c = dot(origCenter, origCenter) - dot(CONFIG.SPHERE.RADIUS, CONFIG.SPHERE.RADIUS);
             const discriminant = b * b - 4 * a * c;
             if (discriminant > 0) {
+                try raw.print(tty.E.SET_ANSI_FG, .{2});
                 try plt.plot(x, y);
+                try raw.print(tty.E.RESET_COLORS, .{});
             }
         }
     }

@@ -29,10 +29,14 @@ pub fn main() !void {
     }
 
     var input_handler = input.InputHandler.init(raw, null);
+    // Sphere test
     {
         var plt = raytrace.Plotter.init(allocator, raw);
         defer plt.deinit();
         try raytrace.sphere(&plt, raw);
+        const top_left = draw.Point{ .x = 1, .y = 1 };
+        const bot_right = draw.Point{ .x = 20, .y = 10 };
+        try draw.box(raw, top_left, bot_right, false);
         switch (input_handler.waitFor()) {
             .quit => return,
             else => {},
