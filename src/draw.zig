@@ -5,6 +5,24 @@ const braille = @import("braille.zig");
 const plotter = @import("plotter.zig");
 const E = tty.E;
 
+// Config
+// TODO: keymaps
+pub const CONFIG = .{
+    .TORUS = .{
+        .DRAW_COLORA = 2,
+        .DRAW_COLORB = 3,
+        .TSTEP = 0.2,
+        .PSTEP = 0.2,
+        .K1 = 10.0,
+        .K2 = 8.0,
+        .R1 = 2.0,
+        .R2 = 4.0,
+    },
+    .CIRCLE = .{
+        .TSTEP = 0.02,
+    },
+};
+
 /// Drawing a circle in 2d can be defined by two variables:
 ///    - origin: an (x, y) point on the plane
 ///    - r: the desired radius of the circle
@@ -13,11 +31,10 @@ const E = tty.E;
 ///     c = origin + (r * cos(t), r * sin(t))
 pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
     const tmax = 2 * std.math.pi;
-    const tstep = 0.02;
     var t: f32 = 0;
 
     // draw circle
-    while (t < tmax + 0.1) : (t += tstep) {
+    while (t < tmax + 0.1) : (t += CONFIG.CIRCLE.TSTEP) {
         const x = (ox + r * @cos(t));
         const y = (oy + r * @sin(t)) / 2;
         const plotx: u16 = @intFromFloat(@trunc(x));
@@ -81,13 +98,6 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     try raw.goto(0, raw.height - 6);
     try raw.print(E.CLEAR_DOWN, .{});
 
-    // TODO: keymap
-    const k1 = 10.0;
-    const k2 = 8.0;
-    // TODO: keymap
-    const r1 = 2.0;
-    const r2 = 4.0;
-
     var npoints: usize = 0;
     npoints = 0;
     var ndraws: usize = 0;
@@ -95,20 +105,18 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
 
     var t: f32 = 0.0;
     // TODO: keymap
-    while (t < std.math.pi * 2) : (t += 0.2) {
+    while (t < std.math.pi * 2) : (t += TSTEP) {
         var p: f32 = 0;
         // TODO: keymap
-        while (p < std.math.pi * 2) : (p += 0.2) {
-            const point = project(r1, r2, k1, k2, a, b, t, p);
+        while (p < std.math.pi * 2) : (p += PSTEP) {
+            const point = project(R1, R2, K1, K2, a, b, t, p);
             const plotx = point.x + @as(f32, @floatFromInt(raw.width)) / 2;
             const ploty = point.y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
             const L = point.L;
 
-            if (L > 0) {
-                try raw.print(E.SET_ANSI_FG, .{1});
-            } else {
-                try raw.print(E.SET_ANSI_FG, .{3});
-            }
+            const color: u16 = if (L > 0) DRAW_COLORA else DRAW_COLORB;
+
+            try raw.print(E.SET_ANSI_FG, .{color});
 
             try plt.plot(plotx, ploty);
             const ux: u16 = @intFromFloat(@mod(point.x, plt.width));
@@ -263,3 +271,13 @@ fn project(r1: f32, r2: f32, k1: f32, k2: f32, a: f32, b: f32, t: f32, p: f32) P
         sina * sint + cosb * (cosa * sint - cost * sina * sinp);
     return Projection{ .x = x, .y = y, .L = L };
 }
+
+// shh I'm aliasing here
+const DRAW_COLORA = CONFIG.TORUS.DRAW_COLORA;
+const DRAW_COLORB = CONFIG.TORUS.DRAW_COLORB;
+const TSTEP = CONFIG.TORUS.TSTEP;
+const PSTEP = CONFIG.TORUS.PSTEP;
+const K1 = CONFIG.TORUS.K1;
+const K2 = CONFIG.TORUS.K2;
+const R1 = CONFIG.TORUS.R1;
+const R2 = CONFIG.TORUS.R2;

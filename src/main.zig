@@ -74,8 +74,6 @@ pub fn main() !void {
         try raw.print(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{3});
         var timer_read = try std.time.Timer.start();
         var running = true;
-        var handler = input.start_handler(raw);
-        handler = handler;
         while (running) {
             if (timer_read.read() > std.time.ns_per_ms * 17) {
                 const n = try raw.read(&buffer);
