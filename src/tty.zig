@@ -99,7 +99,6 @@ pub const RawMode = struct {
         const width = ws.col;
         const height = ws.row;
         std.log.debug("windowsize is {}x{}", .{ width, height });
-        // TODO: reenable later
         _ = try tty.write(CONFIG.START_SEQUENCE);
         const term = .{
             .orig_termios = orig_termios,

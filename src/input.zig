@@ -17,34 +17,38 @@ pub const default_keys = [_]Keymap{
 pub const InputHandler = struct {
     raw: tty.RawMode,
     keymaps: []const Keymap,
-    poll_interval_ms: usize = 32,
-    poll_timeout_ms: usize = 32,
+    timer: std.time.Timer,
+    poll_interval_ms: usize = 128,
     const npm = std.time.ns_per_ms;
     pub fn init(raw: tty.RawMode, keymaps: ?[]Keymap) InputHandler {
         return InputHandler{
             .raw = raw,
+            .timer = std.time.Timer.start() catch @panic("Your system does not support timers!"),
             .keymaps = keymaps orelse &default_keys,
         };
     }
-    pub fn poll(self: InputHandler) ?Command {
-        var timeout = std.time.Timer.start() catch @panic("Your system does not support timers!");
-        var buffer: [16]u8 = undefined;
-        while (timeout.read() < self.poll_timeout_ms * npm) {
-            const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
-            const read = buffer[0..n];
-            for (self.keymaps) |keymap| {
-                if (std.mem.startsWith(u8, read, keymap.key)) return keymap.command;
-            }
+    pub fn poll(self: *InputHandler) ?Command {
+        if (self.timer.read() < self.poll_interval_ms * npm) return null;
+        self.timer.reset();
+
+        std.log.debug("poll", .{});
+        var buffer: [4]u8 = undefined;
+        const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
+        const read = buffer[0..n];
+
+        for (self.keymaps) |keymap| {
+            if (std.mem.startsWith(u8, read, keymap.key)) return keymap.command;
         }
+
         return null;
     }
 
-    pub fn waitFor(self: InputHandler) Command {
-        var timer_read = std.time.Timer.start() catch @panic("Your system does not support timers!");
-        var buffer: [16]u8 = undefined;
+    pub fn waitFor(self: *InputHandler) Command {
+        var buffer: [4]u8 = undefined;
         while (true) {
-            if (timer_read.read() < self.poll_interval_ms * npm) continue;
-            timer_read.reset();
+            if (self.timer.read() < self.poll_interval_ms * npm) {
+                std.Thread.sleep(self.poll_interval_ms * npm);
+            }
             const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
             const read = buffer[0..n];
             for (self.keymaps) |keymap| {

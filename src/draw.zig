@@ -95,8 +95,6 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
-    try raw.goto(0, raw.height - 6);
-    try raw.print(E.CLEAR_DOWN, .{});
 
     var npoints: usize = 0;
     npoints = 0;
@@ -121,9 +119,9 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             try plt.plot(plotx, ploty);
             const ux: u16 = @intFromFloat(@mod(point.x, plt.width));
             const uy: u16 = @intFromFloat(@mod(point.y, plt.height));
-            try raw.print(E.HOME, .{});
+            try raw.print(E.GOTO, .{ 2, 0 });
             try raw.print( //
-                "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4}, b={d:>4}\r\n" ++
+                "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4.2}, b={d:>4.2}\r\n" ++
                 "({d:>6.2},{d:>6.2})\r\n" ++
                 "({d:>6.2},{d:>6.2})", .{
                 raw.width, raw.height, t,  p,  a, b,

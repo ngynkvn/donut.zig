@@ -34,7 +34,7 @@ pub const Plotter = struct {
 
     const zmax: f32 = 10;
     comptime {
-        // TODO:
+        // TODO: assert zmax
         std.debug.assert(true);
     }
 
