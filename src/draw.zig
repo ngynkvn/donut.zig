@@ -37,18 +37,16 @@ pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32)
             plotx,     bx,
             ploty,     by,
         });
-        // Slight delay to see drawing!
-        //std.time.sleep(std.time.ns_per_ms);
     }
 }
 
 pub fn coords(plt: *plotter.Plotter, raw: tty.RawMode) !void {
     for (0..raw.height - 1) |i| {
-        try raw.goto(0, i);
+        try raw.goto(0, @intCast(i));
         try plt.plot(0, @floatFromInt(i));
     }
     for (0..raw.width) |i| {
-        try raw.goto(i, 0);
+        try raw.goto(@intCast(i), 0);
         try plt.plot(@floatFromInt(i), 0);
         try plt.plot(@as(f32, @floatFromInt(i)) + 0.6, 0);
     }
@@ -161,12 +159,12 @@ pub fn box(raw: tty.RawMode, point_top_left: Point, point_bottom_right: Point, c
     const y1: u16 = @intFromFloat(if (ptl.y < pbr.y) pbr.y else ptl.y);
     for ((x0 + 1)..x1) |x| {
         for ([_]u16{ y0, y1 }) |y| {
-            try raw.print(tty.E.GOTO ++ horiz, raw.goto_args(x, y));
+            try raw.print(tty.E.GOTO ++ horiz, raw.translate_xy(@intCast(x), y));
         }
     }
     for ((y0 + 1)..y1) |y| {
         for ([_]u16{ x0, x1 }) |x| {
-            try raw.print(tty.E.GOTO ++ vert, raw.goto_args(x, y));
+            try raw.print(tty.E.GOTO ++ vert, raw.translate_xy(x, @intCast(y)));
         }
     }
 
@@ -179,13 +177,13 @@ pub fn box(raw: tty.RawMode, point_top_left: Point, point_bottom_right: Point, c
         .{ .x = x0, .y = y1, .c = cornerdr },
     };
     for (corners) |cmd| {
-        const args = raw.goto_args(cmd.x, cmd.y);
+        const args = raw.translate_xy(cmd.x, cmd.y);
         try raw.print(tty.E.GOTO ++ "{s}", .{ args[0], args[1], cmd.c });
     }
     if (clear_middle) {
         for (y0 + 1..y1 - 1) |y| {
             for (x0 + 1..x1) |x| {
-                try raw.print(tty.E.GOTO ++ " ", raw.goto_args(x, y));
+                try raw.print(tty.E.GOTO ++ " ", raw.translate_xy(@intCast(x), @intCast(y)));
             }
         }
     }

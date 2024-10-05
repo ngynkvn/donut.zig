@@ -5,6 +5,10 @@ const system = posix.system;
 
 pub const TTY_HANDLE = "/dev/tty";
 
+pub const CONFIG = .{
+    .SLOWDOWN = std.time.ns_per_ms * 0,
+};
+
 /// vt100 / xterm escape sequences
 /// References used:
 ///  - https://vt100.net/docs/vt100-ug/chapter3.html
@@ -12,40 +16,43 @@ pub const TTY_HANDLE = "/dev/tty";
 // zig fmt: off
 pub const E = struct {
     /// escape code prefix
-    pub const ESC = "\x1b[";
-    pub const HOME              = ESC ++ "H";
+    pub const ESC= "\x1b[";
+    pub const HOME               = ESC ++ "H";
     /// goto .{y, x}
-    pub const GOTO              = ESC ++ "{d};{d}H";
-    pub const CLEAR_LINE        = ESC ++ "K";
-    pub const CLEAR_DOWN        = ESC ++ "0J";
-    pub const CLEAR_UP          = ESC ++ "1J";
-    pub const CLEAR_SCREEN      = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
-    pub const ENTER_ALT_SCREEN  = ESC ++ "?1049h";
-    pub const EXIT_ALT_SCREEN   = ESC ++ "?1049l";
-    pub const REPORT_CURSOR_POS = ESC ++ "6n";
-    pub const CURSOR_INVISIBLE  = ESC ++ "?25l";
-    pub const CURSOR_VISIBLE    = ESC ++ "?12;25h";
-    pub const CURSOR_DOWN       = "\x0a";
-    pub const CURSOR_LEFT       = "\x08";
-    pub const CURSOR_RIGHT      = ESC ++ "[C";
-    pub const CURSOR_UP         = ESC ++ "[A";
-    pub const CURSOR_SAVE_POS   = ESC ++ "7";
+    pub const GOTO               = ESC ++ "{d};{d}H";
+    pub const CLEAR_LINE         = ESC ++ "K";
+    pub const CLEAR_DOWN         = ESC ++ "0J";
+    pub const CLEAR_UP           = ESC ++ "1J";
+    pub const CLEAR_SCREEN       = ESC ++ "2J"; // NOTE: https://vt100.net/docs/vt100-ug/chapter3.html#ED
+    pub const ENTER_ALT_SCREEN   = ESC ++ "?1049h";
+    pub const EXIT_ALT_SCREEN    = ESC ++ "?1049l";
+    pub const REPORT_CURSOR_POS  = ESC ++ "6n";
+    pub const CURSOR_INVISIBLE   = ESC ++ "?25l";
+    pub const CURSOR_VISIBLE     = ESC ++ "?12;25h";
+    pub const CURSOR_DOWN        = ""  ++ "\x0a";
+    pub const CURSOR_LEFT        = ""  ++ "\x08";
+    pub const CURSOR_RIGHT       = ESC ++ "[C";
+    pub const CURSOR_UP          = ESC ++ "[A";
+    pub const CURSOR_SAVE_POS    = ESC ++ "7";
+    pub const CURSOR_RESTORE_POS = ESC ++ "8";
     /// setaf .{color}
-    pub const SET_ANSI_FG       = ESC ++ "3{d}m";
+    pub const SET_ANSI_FG        = ESC ++ "3{d}m";
     /// setab .{color}
-    pub const SET_ANSI_BG       = ESC ++ "4{d}m";
+    pub const SET_ANSI_BG        = ESC ++ "4{d}m";
     /// set true color (rgb)
-    pub const SET_TRUCOLOR =  ESC ++ "38;2;{};{};{}m";
-    pub const RESET_COLORS      = ESC ++ "m";
+    pub const SET_TRUCOLOR       = ESC ++ "38;2;{};{};{}m";
+    pub const RESET_COLORS       = ESC ++ "m";
 };
 // zig fmt: on
 
 pub const RawMode = struct {
     orig_termios: posix.termios,
     tty: std.fs.File,
+    tty_writer: std.fs.File.Writer,
     width: u16,
     height: u16,
-    const CursorPos = struct { row: usize, col: usize };
+    pub const Error = std.posix.WriteError;
+    pub const CursorPos = struct { row: usize, col: usize };
 
     /// Enter "raw mode", returning a struct that wraps around the provided tty file
     /// Entering raw mode will automatically send the sequence for entering an
@@ -89,10 +96,12 @@ pub const RawMode = struct {
         const width = ws.col;
         const height = ws.row;
         std.log.debug("ws is {}x{}\n", .{ width, height });
-        _ = try tty.write(E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE);
+        // TODO: reenable later
+        // _ = try tty.write(E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE);
         const term = .{
             .orig_termios = orig_termios,
             .tty = tty,
+            .tty_writer = tty.writer(),
             .width = width,
             .height = height,
         };
@@ -105,12 +114,18 @@ pub const RawMode = struct {
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
     }
+
     /// Move cursor to (x, y) (column, row)
     /// (0, 0) is defined as the bottom left corner of the terminal.
-    pub fn goto(self: RawMode, x: usize, y: usize) !void {
-        try self.print(E.GOTO, self.goto_args(x, y));
+    pub fn goto(self: RawMode, x: u16, y: u16) !void {
+        try self.print(
+            E.GOTO,
+            .{ self.height - y, x },
+        );
     }
-    pub fn goto_args(self: RawMode, x: usize, y: usize) struct { usize, usize } {
+
+    /// translates the given `(x, y)` coordinates to internal coordinate system
+    pub fn translate_xy(self: RawMode, x: u16, y: u16) struct { u16, u16 } {
         return .{ self.height - y, x };
     }
     pub fn printTermSize(self: RawMode) !void {
@@ -131,12 +146,24 @@ pub const RawMode = struct {
     pub fn read(self: RawMode, buffer: []u8) !usize {
         return self.tty.read(buffer);
     }
+
     /// print to screen via fmt string
     pub fn print(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
-        try self.tty.writer().print(fmt, args);
+        try self.printa(fmt, args, .{});
     }
     /// raw write
     pub fn write(self: RawMode, buf: []const u8) !usize {
+        if (CONFIG.SLOWDOWN != 0) std.Thread.sleep(CONFIG.SLOWDOWN);
         return try self.tty.write(buf);
+    }
+
+    pub const WriteArgs = struct { cursor: enum { KEEP, RESTORE_POS } = .KEEP, sleep: usize = 0 };
+    pub fn printa(self: RawMode, comptime fmt: []const u8, args: anytype, wargs: WriteArgs) !void {
+        // TODO: check if this will exclude this code from being added at comptime
+        if (CONFIG.SLOWDOWN != 0) std.Thread.sleep(CONFIG.SLOWDOWN);
+        if (wargs.sleep != 0) std.Thread.sleep(wargs.sleep);
+        _ = if (wargs.cursor == .RESTORE_POS) try self.tty_writer.write(E.CURSOR_SAVE_POS);
+        try self.tty_writer.print(fmt, args);
+        _ = if (wargs.cursor == .RESTORE_POS) try self.tty_writer.write(E.CURSOR_RESTORE_POS);
     }
 };

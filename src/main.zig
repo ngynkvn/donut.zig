@@ -4,6 +4,7 @@ const posix = std.posix;
 const system = std.posix.system;
 
 const tty = @import("tty.zig");
+const input = @import("input.zig");
 const draw = @import("draw.zig");
 const plotter = @import("plotter.zig");
 const braille = @import("braille.zig");
@@ -16,7 +17,7 @@ pub fn main() !void {
     const ttyh = try std.fs.openFileAbsolute(tty.TTY_HANDLE, .{ .mode = .read_write });
     defer ttyh.close();
 
-    const raw = try tty.RawMode.enable(ttyh);
+    var raw = try tty.RawMode.enable(ttyh);
     defer {
         const errno = raw.restore() catch @panic("failed to write :(");
         std.debug.print("{}\n", .{gpa.deinit()});
@@ -24,7 +25,6 @@ pub fn main() !void {
             @panic("no good");
         }
     }
-    // var plot = plotter.Plotter{ .braille = @constCast(&braille.Plotter.init(allocator, raw)) };
     var plot = braille.Plotter.init(allocator, raw);
     defer plot.deinit();
 
@@ -73,18 +73,19 @@ pub fn main() !void {
         var dirty = true;
         try raw.print(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{3});
         var timer_read = try std.time.Timer.start();
-        while (true) {
-            if (timer_read.read() > std.time.ns_per_ms * 100) {
+        var running = true;
+        var handler = input.start_handler(raw);
+        handler = handler;
+        while (running) {
+            if (timer_read.read() > std.time.ns_per_ms * 17) {
                 const n = try raw.read(&buffer);
                 bufferlen = 0;
                 const read = buffer[0..n];
-                try raw.goto(raw.width - 30, raw.height);
-                try raw.print("CURRENT_BUFFER={}", .{n});
                 if (std.mem.startsWith(u8, read, "\r")) {
-                    return;
+                    running = false;
                 }
                 if (std.mem.startsWith(u8, read, "\x03")) { // <C-c>
-                    return;
+                    running = false;
                 }
                 if (std.mem.startsWith(u8, read, "h")) {
                     a -= 0.1;
@@ -112,7 +113,7 @@ pub fn main() !void {
                 }
             }
             if (paused) {
-                std.Thread.sleep(100 * std.time.ns_per_ms);
+                std.Thread.sleep(32 * std.time.ns_per_ms);
             } else {
                 dirty = true;
                 a += 0.05;
