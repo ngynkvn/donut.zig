@@ -7,6 +7,10 @@ pub const TTY_HANDLE = "/dev/tty";
 
 pub const CONFIG = .{
     .SLOWDOWN = std.time.ns_per_ms * 0,
+    // Disable tty's SIGINT handling,
+    .HANDLE_SIGINT = true,
+    .START_SEQUENCE = E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE,
+    .EXIT_SEQUENCE = E.EXIT_ALT_SCREEN ++ E.CURSOR_VISIBLE,
 };
 
 /// vt100 / xterm escape sequences
@@ -68,20 +72,20 @@ pub const RawMode = struct {
         // Some explanation of the flags can be found in the links above.
         // TODO: check out the other flags later
         // zig fmt: off
-        raw.lflag.ECHO   = false; // Disable echo input
-        raw.lflag.ICANON = false; // Read byte by byte
-        raw.lflag.IEXTEN = false; // Disable <C-v>
-        raw.lflag.ISIG   = false; // Disable <C-c> and <C-z>
-        raw.iflag.IXON   = false; // Disable <C-s> and <C-q>
-        raw.iflag.ICRNL  = false; // Disable <C-m>
-        raw.iflag.BRKINT = false; // Break condition sends SIGINT
-        raw.iflag.INPCK  = false; // Enable parity checking
-        raw.iflag.ISTRIP = false; // Strip 8th bit of input byte
-        raw.oflag.OPOST  = false; // Disable translating "\n" to "\r\n"
+        raw.lflag.ECHO   = false;                 // Disable echo        input
+        raw.lflag.ICANON = false;                 // Read    byte        by    byte
+        raw.lflag.IEXTEN = false;                 // Disable <C-v>
+        raw.lflag.ISIG   = !CONFIG.HANDLE_SIGINT; // Disable <C-c>       and   <C-z>
+        raw.iflag.IXON   = false;                 // Disable <C-s>       and   <C-q>
+        raw.iflag.ICRNL  = false;                 // Disable <C-m>
+        raw.iflag.BRKINT = false;                 // Break   condition   sends SIGINT
+        raw.iflag.INPCK  = false;                 // Enable  parity      checking
+        raw.iflag.ISTRIP = false;                 // Strip   8th         bit   of input byte
+        raw.oflag.OPOST  = false;                 // Disable translating "\n"  to "\r\n"
         raw.cflag.CSIZE  = .CS8;
 
-        raw.cc[@intFromEnum(system.V.MIN)]  = 0; // min bytes required for read
-        raw.cc[@intFromEnum(system.V.TIME)] = 0; // min time to wait for response, 100ms per unit
+        raw.cc[@intFromEnum(system.V.MIN)]  = 0;  // min bytes required for read
+        raw.cc[@intFromEnum(system.V.TIME)] = 0;  // min time to wait for response, 100ms per unit
         // zig fmt: on
 
         const rc = system.tcsetattr(tty.handle, .FLUSH, &raw);
@@ -97,7 +101,7 @@ pub const RawMode = struct {
         const height = ws.row;
         std.log.debug("ws is {}x{}\n", .{ width, height });
         // TODO: reenable later
-        // _ = try tty.write(E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE);
+        _ = try tty.write(CONFIG.START_SEQUENCE);
         const term = .{
             .orig_termios = orig_termios,
             .tty = tty,
@@ -110,7 +114,7 @@ pub const RawMode = struct {
         return term;
     }
     pub fn restore(self: RawMode) !posix.E {
-        _ = try self.tty.write(E.EXIT_ALT_SCREEN ++ E.CURSOR_VISIBLE);
+        _ = try self.tty.write(CONFIG.EXIT_SEQUENCE);
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
     }

@@ -1,13 +1,10 @@
 const std = @import("std");
 
-const posix = std.posix;
-const system = std.posix.system;
-
 const tty = @import("tty.zig");
-const input = @import("input.zig");
 const draw = @import("draw.zig");
 const plotter = @import("plotter.zig");
 const braille = @import("braille.zig");
+const drawtests = @import("drawtests.zig");
 const E = tty.E;
 var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
 const allocator = gpa.allocator();
@@ -29,39 +26,12 @@ pub fn main() !void {
     defer plot.deinit();
 
     // Line test
-    {
-        const rw: f32 = @floatFromInt(raw.width);
-        const rh: f32 = @floatFromInt(raw.height);
-        var timer = try std.time.Timer.start();
-        try draw.line(&plot, .{ .x = 0, .y = rh - 0.1 }, .{ .x = rw, .y = rh - 0.1 });
-        try draw.line(&plot, .{ .x = 0, .y = rh - 1 }, .{ .x = rw, .y = rh - 1 });
-        try draw.line(&plot, .{ .x = 0, .y = rh - 2 }, .{ .x = rw, .y = rh - 2 });
-        try raw.goto(0, raw.height);
-        try raw.printTermSize();
-        const elapsed: f32 = @floatFromInt(timer.lap());
-        try draw.box(raw, .{ .x = 5, .y = rh - 5 }, .{ .x = 80, .y = rh - 20 }, false);
-        try raw.goto(6, raw.height - 6);
-        try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
-        try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
-    }
-    // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
-    {
-        var timer = try std.time.Timer.start();
-        try draw.circle(&plot, raw, 20, 50, 30);
-        try draw.circle(&plot, raw, 5, 40, 36);
-        try draw.circle(&plot, raw, 3, 60, 32);
-        try draw.curve(
-            &plot,
-            .{ .x = 42, .y = 12 },
-            .{ .x = 46, .y = 8 },
-            .{ .x = 58, .y = 12 },
-        );
-        try draw.coords(&plot, raw);
-        const elapsed: f32 = @floatFromInt(timer.lap());
-        try raw.goto(0, 0);
-        try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
-    }
+    try drawtests.test_line(&plot, raw);
 
+    // https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
+    try drawtests.test_circle(&plot, raw);
+
+    // Torus test
     {
         var a: f32 = 0.0;
         var b: f32 = -0.4;
