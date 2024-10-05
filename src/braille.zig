@@ -1,10 +1,19 @@
 const std = @import("std");
 const tty = @import("tty.zig");
 
+const CONFIG = .{
+    .MARK_EDGES = false,
+    .TRACING = true,
+};
+
+pub var ncalls: usize = 0;
+pub var nfresh: usize = 0;
+pub var nredraws: usize = 0;
+
 // TODO: does the plotter have to know about 3d?..
 /// Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
-    const Key = struct { i16, i16 };
+    const Key = struct { u16, u16 };
     raw: tty.RawMode,
     buffer: std.AutoHashMap(Key, u8),
     width: f32 = 0,
@@ -37,18 +46,29 @@ pub const Plotter = struct {
     }
 
     pub fn plot(self: *Plotter, x: f32, y: f32) !void {
-        const key = Key{ @intFromFloat(x), @intFromFloat(y) };
-        const sx = @trunc(@mod(x, 1) * 2);
-        const sy = @trunc(@mod(y, 1) * 4);
         // NOTE: explore vectors
+        const ux: u16 = @intFromFloat(x);
+        const uy: u16 = @intFromFloat(y);
+        const key = Key{ ux, uy };
+        const sx = (x - @trunc(x)) * 2;
+        const sy = (y - @trunc(y)) * 4;
+
         const result = try self.buffer.getOrPutValue(key, 0);
-        result.value_ptr.* = setBbit(result.value_ptr.*, @intFromFloat(sx), @intFromFloat(sy));
-        const plotx: u16 = @intFromFloat(@trunc(@mod(x, self.width)));
-        const ploty: u16 = @intFromFloat(@trunc(@mod(y, self.height)));
-        try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, plotx, BraillePoint(result.value_ptr.*) });
-        // Also mark on edges
-        try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - ploty, 0, BraillePoint(result.value_ptr.*) });
-        try self.raw.print(tty.E.GOTO ++ "{s}", .{ 0, plotx, BraillePoint(result.value_ptr.*) });
+        const bbit = result.value_ptr.*;
+        const newbit = setBbit(bbit, @intFromFloat(sx), @intFromFloat(sy));
+        if (CONFIG.TRACING) {
+            ncalls += 1;
+            if (bbit != newbit) nfresh += 1 else nredraws += 1;
+        }
+        if (bbit == newbit) return;
+
+        result.value_ptr.* = setBbit(bbit, @intFromFloat(sx), @intFromFloat(sy));
+        try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - uy, ux, BraillePoint(result.value_ptr.*) });
+
+        if (CONFIG.MARK_EDGES) {
+            try self.raw.print(tty.E.GOTO ++ "{s}", .{ self.raw.height - uy, 0, BraillePoint(result.value_ptr.*) });
+            try self.raw.print(tty.E.GOTO ++ "{s}", .{ 0, ux, BraillePoint(result.value_ptr.*) });
+        }
     }
 };
 

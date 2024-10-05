@@ -10,6 +10,7 @@ pub const CONFIG = .{
     .START_SEQUENCE = E.ENTER_ALT_SCREEN ++ E.CURSOR_INVISIBLE,
     .EXIT_SEQUENCE = E.EXIT_ALT_SCREEN ++ E.CURSOR_VISIBLE,
     .TTY_HANDLE = "/dev/tty",
+    .TRACING = true,
 };
 
 /// vt100 / xterm escape sequences
@@ -36,6 +37,8 @@ pub const E = struct {
     pub const CURSOR_LEFT        = ""  ++ "\x08";
     pub const CURSOR_RIGHT       = ESC ++ "[C";
     pub const CURSOR_UP          = ESC ++ "[A";
+    pub const CURSOR_HOME_ROW     = ESC ++ "1G";
+    pub const CURSOR_COL_ABS     = ESC ++ "{}G";
     pub const CURSOR_SAVE_POS    = ESC ++ "7";
     pub const CURSOR_RESTORE_POS = ESC ++ "8";
     /// setaf .{color}
@@ -48,6 +51,7 @@ pub const E = struct {
 };
 // zig fmt: on
 
+pub var nbytes: usize = 0;
 pub const RawMode = struct {
     orig_termios: posix.termios,
     tty: std.fs.File,
@@ -120,10 +124,11 @@ pub const RawMode = struct {
     /// Move cursor to (x, y) (column, row)
     /// (0, 0) is defined as the bottom left corner of the terminal.
     pub fn goto(self: RawMode, x: u16, y: u16) !void {
-        try self.print(
-            E.GOTO,
-            .{ self.height - y, x },
-        );
+        try self.print(E.GOTO, .{ self.height - y, x });
+    }
+    /// goto origin based on top left (row, col)
+    pub fn gotorc(self: RawMode, r: u16, c: u16) !void {
+        try self.print(E.GOTO, .{ r, c });
     }
 
     /// translates the given `(x, y)` coordinates to internal coordinate system
@@ -165,7 +170,10 @@ pub const RawMode = struct {
         if (CONFIG.SLOWDOWN != 0) std.Thread.sleep(CONFIG.SLOWDOWN);
         if (wargs.sleep != 0) std.Thread.sleep(wargs.sleep);
         _ = if (wargs.cursor == .RESTORE_POS) try self.tty_writer.write(E.CURSOR_SAVE_POS);
+        if (wargs.cursor == .RESTORE_POS and CONFIG.TRACING) nbytes += E.CURSOR_SAVE_POS.len;
         try self.tty_writer.print(fmt, args);
+        if (CONFIG.TRACING) nbytes += fmt.len;
         _ = if (wargs.cursor == .RESTORE_POS) try self.tty_writer.write(E.CURSOR_RESTORE_POS);
+        if (wargs.cursor == .RESTORE_POS and CONFIG.TRACING) nbytes += E.CURSOR_SAVE_POS.len;
     }
 };

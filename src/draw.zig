@@ -102,14 +102,17 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
     ndraws = 0;
 
     var t: f32 = 0.0;
+    var p: f32 = 0;
+    var point: Projection = undefined;
+    var plotx: f32 = undefined;
+    var ploty: f32 = undefined;
     // TODO: keymap
     while (t < std.math.pi * 2) : (t += TSTEP) {
-        var p: f32 = 0;
         // TODO: keymap
         while (p < std.math.pi * 2) : (p += PSTEP) {
-            const point = project(R1, R2, K1, K2, a, b, t, p);
-            const plotx = point.x + @as(f32, @floatFromInt(raw.width)) / 2;
-            const ploty = point.y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
+            point = project(R1, R2, K1, K2, a, b, t, p);
+            plotx = point.x + @as(f32, @floatFromInt(raw.width)) / 2;
+            ploty = point.y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
             const L = point.L;
 
             const color: u16 = if (L > 0) DRAW_COLORA else DRAW_COLORB;
@@ -117,18 +120,26 @@ pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
             try raw.print(E.SET_ANSI_FG, .{color});
 
             try plt.plot(plotx, ploty);
-            const ux: u16 = @intFromFloat(@mod(point.x, plt.width));
-            const uy: u16 = @intFromFloat(@mod(point.y, plt.height));
             try raw.print(E.GOTO, .{ 2, 0 });
-            try raw.print( //
-                "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4.2}, b={d:>4.2}\r\n" ++
-                "({d:>6.2},{d:>6.2})\r\n" ++
-                "({d:>6.2},{d:>6.2})", .{
-                raw.width, raw.height, t,  p,  a, b,
-                point.x,   point.y,    ux, uy,
-            });
         }
+        p = 0;
     }
+    const ux: u16 = @intFromFloat(plotx);
+    const uy: u16 = @intFromFloat(ploty);
+    try raw.print( //
+        "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4.2}, b={d:>4.2}\r\n" ++
+        "real_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
+        "term_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
+        "ncalls={d:>6.2},nfresh={d:>6.2}\r\n" ++
+        "nredraws={d:>6.2}", .{
+        raw.width,        raw.height, t,              p,
+        a,                b,          point.x,        point.y,
+        ux,               uy,         braille.ncalls, braille.nfresh,
+        braille.nredraws,
+    });
+    braille.ncalls = 0;
+    braille.nfresh = 0;
+    braille.nredraws = 0;
 }
 
 const M = @This();

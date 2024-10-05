@@ -53,11 +53,10 @@ pub fn main() !void {
 
     // Torus test
     {
+        tty.nbytes = 0;
         var a: f32 = 0.0;
         var b: f32 = -0.4;
         var paused = false;
-        var frame_times: [32]u64 = .{0} ** 32;
-        var frame: usize = 0;
         var dirty = true;
         try raw.print(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{3});
         var running = true;
@@ -85,22 +84,14 @@ pub fn main() !void {
                 continue;
             }
             var timer_frame = try std.time.Timer.start();
-            try raw.goto(0, raw.height - 7);
+            try raw.gotorc(8, 0);
             try raw.print(E.CLEAR_DOWN, .{});
             try draw.torus(&plot, raw, a, b);
-            try draw.line(&plot, .{ .x = 0, .y = @floatFromInt(raw.height - 6) }, .{ .x = 36, .y = @floatFromInt(raw.height - 6) });
-            try raw.goto(0, raw.height - 4);
-            const elapsed: u64 = timer_frame.read();
-            frame_times[frame] = elapsed;
-            frame = (frame + 1) % 32;
-
-            var sum: f32 = 0;
-            for (frame_times) |t| {
-                sum += (@as(f32, @floatFromInt(t)) / 32);
-            }
-            try raw.print(E.CURSOR_DOWN ++ "avg     {d:<4.2}ms", .{sum / std.time.ns_per_ms});
+            try raw.gotorc(4, 0);
+            try raw.print("nbytes={}", .{tty.nbytes});
+            tty.nbytes = 0;
             dirty = false;
-            while (timer_frame.read() < std.time.ns_per_ms * 16) {}
+            while (timer_frame.read() < std.time.ns_per_ms * 16) std.Thread.sleep(std.time.ns_per_ms);
         }
     }
 }
