@@ -33,11 +33,11 @@ pub const E = struct {
     pub const REPORT_CURSOR_POS  = ESC ++ "6n";
     pub const CURSOR_INVISIBLE   = ESC ++ "?25l";
     pub const CURSOR_VISIBLE     = ESC ++ "?12;25h";
-    pub const CURSOR_DOWN        = ""  ++ "\x0a";
-    pub const CURSOR_LEFT        = ""  ++ "\x08";
-    pub const CURSOR_RIGHT       = ESC ++ "[C";
-    pub const CURSOR_UP          = ESC ++ "[A";
-    pub const CURSOR_HOME_ROW     = ESC ++ "1G";
+    pub const CURSOR_UP          = ESC ++ "{}A";
+    pub const CURSOR_DOWN        = ESC ++ "{}B";
+    pub const CURSOR_FORWARD     = ESC ++ "{}C";
+    pub const CURSOR_BACKWARDS   = ESC ++ "{}D";
+    pub const CURSOR_HOME_ROW    = ESC ++ "1G";
     pub const CURSOR_COL_ABS     = ESC ++ "{}G";
     pub const CURSOR_SAVE_POS    = ESC ++ "7";
     pub const CURSOR_RESTORE_POS = ESC ++ "8";
@@ -52,12 +52,14 @@ pub const E = struct {
 // zig fmt: on
 
 pub var nbytes: usize = 0;
+pub var gotos: usize = 0;
 pub const RawMode = struct {
     orig_termios: posix.termios,
     tty: std.fs.File,
     tty_writer: std.fs.File.Writer,
     width: u16,
     height: u16,
+    write_buffer: std.ArrayList([]const u8),
     pub const Error = std.posix.WriteError;
     pub const CursorPos = struct { row: usize, col: usize };
 
@@ -69,7 +71,7 @@ pub const RawMode = struct {
     ///
     /// Explanation here: https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
     /// https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
-    pub fn enable(tty: std.fs.File) !RawMode {
+    pub fn init(allocator: std.mem.Allocator, tty: std.fs.File) !RawMode {
         const orig_termios = try posix.tcgetattr(tty.handle);
         var raw = orig_termios;
         // Some explanation of the flags can be found in the links above.
@@ -110,13 +112,15 @@ pub const RawMode = struct {
             .tty_writer = tty.writer(),
             .width = width,
             .height = height,
+            .write_buffer = std.ArrayList([]const u8).init(allocator),
         };
         // Hook into panic so we can restore terminal state
         @import("panic.zig").rawterm = term;
         return term;
     }
-    pub fn restore(self: RawMode) !posix.E {
+    pub fn deinit(self: RawMode) !posix.E {
         _ = try self.tty.write(CONFIG.EXIT_SEQUENCE);
+        defer self.write_buffer.deinit();
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
     }
@@ -125,10 +129,12 @@ pub const RawMode = struct {
     /// (0, 0) is defined as the bottom left corner of the terminal.
     pub fn goto(self: RawMode, x: u16, y: u16) !void {
         try self.print(E.GOTO, .{ self.height - y, x });
+        if (CONFIG.TRACING) gotos += E.GOTO.len;
     }
     /// goto origin based on top left (row, col)
     pub fn gotorc(self: RawMode, r: u16, c: u16) !void {
         try self.print(E.GOTO, .{ r, c });
+        if (CONFIG.TRACING) gotos += E.GOTO.len;
     }
 
     /// translates the given `(x, y)` coordinates to internal coordinate system

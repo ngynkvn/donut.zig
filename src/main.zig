@@ -19,9 +19,9 @@ pub fn main() !void {
     const ttyh = try std.fs.openFileAbsolute(tty.CONFIG.TTY_HANDLE, .{ .mode = .read_write });
     defer ttyh.close();
 
-    var raw = try tty.RawMode.enable(ttyh);
+    var raw = try tty.RawMode.init(allocator, ttyh);
     defer {
-        const errno = raw.restore() catch @panic("failed to write :(");
+        const errno = raw.deinit() catch @panic("failed to write :(");
         std.debug.print("{}\n", .{gpa.deinit()});
         if (errno != .SUCCESS) {
             @panic("no good");
@@ -87,9 +87,21 @@ pub fn main() !void {
             try raw.gotorc(8, 0);
             try raw.print(E.CLEAR_DOWN, .{});
             try draw.torus(&plot, raw, a, b);
-            try raw.gotorc(4, 0);
-            try raw.print("nbytes={}", .{tty.nbytes});
+            try raw.gotorc(4, raw.width - 40);
+
+            const elapsed: f32 = @floatFromInt(timer_frame.read());
+            const nps: f32 = @floatFromInt(std.time.ns_per_s);
+            const npms: f32 = @floatFromInt(std.time.ns_per_ms);
+            const nkb: f32 = @as(f32, @floatFromInt(tty.nbytes)) / 1024.0;
+            const nkbdraw: f32 = @as(f32, @floatFromInt(tty.gotos)) / 1024.0;
+            const kb_per_sec = (nkb * nps) / elapsed;
+            try raw.print(
+                "{d:>6.2}kb , {d:>6.2} from goto\n" ++ E.CURSOR_BACKWARDS ++
+                    "{d:>6.2}ms , {d:>6.2}kb/s",
+                .{ nkb, nkbdraw, 20, elapsed / npms, kb_per_sec },
+            );
             tty.nbytes = 0;
+            tty.gotos = 0;
             dirty = false;
             while (timer_frame.read() < std.time.ns_per_ms * 16) std.Thread.sleep(std.time.ns_per_ms);
         }

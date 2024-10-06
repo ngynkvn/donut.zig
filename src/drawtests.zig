@@ -17,8 +17,8 @@ pub fn test_line(plot: *plotter.Plotter, raw: tty.RawMode) !void {
     const elapsed: f32 = @floatFromInt(timer.lap());
     try draw.box(raw, .{ .x = 5, .y = rh - 5 }, .{ .x = 80, .y = rh - 20 }, false);
     try raw.goto(6, raw.height - 6);
-    try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
-    try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{(elapsed) / std.time.ns_per_ms});
+    try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{ (elapsed) / std.time.ns_per_ms, 1 });
+    try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{ (elapsed) / std.time.ns_per_ms, 1 });
 }
 
 /// Circle test
