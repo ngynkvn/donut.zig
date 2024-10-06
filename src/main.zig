@@ -19,7 +19,8 @@ pub fn main() !void {
     const ttyh = try std.fs.openFileAbsolute(tty.CONFIG.TTY_HANDLE, .{ .mode = .read_write });
     defer ttyh.close();
 
-    var raw = try tty.RawMode.init(allocator, ttyh);
+    // This is called being lazy
+    var raw = @constCast(&(try tty.RawMode.init(allocator, ttyh)));
     defer {
         const errno = raw.deinit() catch @panic("failed to write :(");
         std.debug.print("{}\n", .{gpa.deinit()});
@@ -103,13 +104,11 @@ pub fn main() !void {
             tty.nbytes = 0;
             tty.gotos = 0;
             dirty = false;
+            try raw.flush();
             while (timer_frame.read() < std.time.ns_per_ms * 16) std.Thread.sleep(std.time.ns_per_ms);
         }
     }
 }
-
-// Setup handlers
-pub const Panic = @import("panic.zig");
 
 var log_file: std.fs.File = undefined;
 fn init_logger() !void {

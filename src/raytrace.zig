@@ -24,7 +24,7 @@ const CONFIG = .{
 /// Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
     const Key = struct { usize, usize };
-    raw: tty.RawMode,
+    raw: *tty.RawMode,
     buffer: std.AutoHashMap(Key, u8),
     width: usize,
     height: usize,
@@ -38,7 +38,7 @@ pub const Plotter = struct {
         std.debug.assert(true);
     }
 
-    pub fn init(allocator: std.mem.Allocator, raw: tty.RawMode) Plotter {
+    pub fn init(allocator: std.mem.Allocator, raw: *tty.RawMode) Plotter {
         const vw = 2;
         const vh = 1;
         return Plotter{
@@ -82,7 +82,7 @@ pub const Plotter = struct {
 
 const SCALEX = 2;
 const SCALEY = 4;
-pub fn sphere(plt: *Plotter, raw: tty.RawMode) !void {
+pub fn sphere(plt: *Plotter, raw: *tty.RawMode) !void {
     const vu = Point{ plt.vw, 0, 0 };
     const vv = Point{ 0, -plt.vh, 0 };
     const du = scaled(vu, 1.0 / @as(f32, @floatFromInt(plt.width)));
@@ -113,6 +113,7 @@ pub fn sphere(plt: *Plotter, raw: tty.RawMode) !void {
             }
         }
     }
+    try raw.flush();
 }
 
 fn scaled(a: Point, scalar_value: f32) Point {

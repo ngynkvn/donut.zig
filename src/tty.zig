@@ -56,17 +56,16 @@ pub var gotos: usize = 0;
 pub const RawMode = struct {
     orig_termios: posix.termios,
     tty: std.fs.File,
-    tty_writer: std.fs.File.Writer,
     width: u16,
     height: u16,
-    write_buffer: std.ArrayList([]const u8),
+    buffer: std.ArrayList(u8),
     pub const Error = std.posix.WriteError;
     pub const CursorPos = struct { row: usize, col: usize };
 
     /// Enter "raw mode", returning a struct that wraps around the provided tty file
     /// Entering raw mode will automatically send the sequence for entering an
     /// alternate screen (smcup) and hiding the cursor.
-    /// Use `defer RawMode.restore()` to reset on exit.
+    /// Use `defer RawMode.deinit()` to reset on exit.
     /// Deferral will set the sequence for exiting alt screen (rmcup)
     ///
     /// Explanation here: https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
@@ -106,45 +105,40 @@ pub const RawMode = struct {
         const height = ws.row;
         std.log.debug("windowsize is {}x{}", .{ width, height });
         _ = try tty.write(CONFIG.START_SEQUENCE);
+        const buffer = std.ArrayList(u8).init(allocator);
         const term = .{
             .orig_termios = orig_termios,
             .tty = tty,
-            .tty_writer = tty.writer(),
             .width = width,
             .height = height,
-            .write_buffer = std.ArrayList([]const u8).init(allocator),
+            .buffer = buffer,
         };
-        // Hook into panic so we can restore terminal state
-        @import("panic.zig").rawterm = term;
         return term;
     }
-    pub fn deinit(self: RawMode) !posix.E {
+    pub fn deinit(self: *RawMode) !posix.E {
         _ = try self.tty.write(CONFIG.EXIT_SEQUENCE);
-        defer self.write_buffer.deinit();
+        defer self.buffer.deinit();
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
     }
 
     /// Move cursor to (x, y) (column, row)
     /// (0, 0) is defined as the bottom left corner of the terminal.
-    pub fn goto(self: RawMode, x: u16, y: u16) !void {
+    pub fn goto(self: *RawMode, x: u16, y: u16) !void {
         try self.print(E.GOTO, .{ self.height - y, x });
         if (CONFIG.TRACING) gotos += E.GOTO.len;
     }
     /// goto origin based on top left (row, col)
-    pub fn gotorc(self: RawMode, r: u16, c: u16) !void {
+    pub fn gotorc(self: *RawMode, r: u16, c: u16) !void {
         try self.print(E.GOTO, .{ r, c });
         if (CONFIG.TRACING) gotos += E.GOTO.len;
     }
 
     /// translates the given `(x, y)` coordinates to internal coordinate system
-    pub fn translate_xy(self: RawMode, x: u16, y: u16) struct { u16, u16 } {
+    pub fn translate_xy(self: *RawMode, x: u16, y: u16) struct { u16, u16 } {
         return .{ self.height - y, x };
     }
-    pub fn printTermSize(self: RawMode) !void {
-        try self.print("{d}x{d}", .{ self.width, self.height });
-    }
-    pub fn query(self: RawMode) !CursorPos {
+    pub fn query(self: *RawMode) !CursorPos {
         _ = try self.tty.write(E.REPORT_CURSOR_POS);
         // TODO: make this more durable
         var buf: [32]u8 = undefined;
@@ -156,30 +150,35 @@ pub const RawMode = struct {
         return .{ .row = row, .col = col };
     }
     /// read input
-    pub fn read(self: RawMode, buffer: []u8) !usize {
+    pub fn read(self: *RawMode, buffer: []u8) !usize {
         return self.tty.read(buffer);
     }
 
     /// print to screen via fmt string
-    pub fn print(self: RawMode, comptime fmt: []const u8, args: anytype) !void {
+    pub fn print(self: *RawMode, comptime fmt: []const u8, args: anytype) !void {
         try self.printa(fmt, args, .{});
     }
     /// raw write
-    pub fn write(self: RawMode, buf: []const u8) !usize {
+    pub fn write(self: *RawMode, buf: []const u8) !usize {
         if (CONFIG.SLOWDOWN != 0) std.Thread.sleep(CONFIG.SLOWDOWN);
-        return try self.tty.write(buf);
+        return try self.buffer.writer().write(buf);
     }
 
     pub const WriteArgs = struct { cursor: enum { KEEP, RESTORE_POS } = .KEEP, sleep: usize = 0 };
-    pub fn printa(self: RawMode, comptime fmt: []const u8, args: anytype, wargs: WriteArgs) !void {
+    pub fn printa(self: *RawMode, comptime fmt: []const u8, args: anytype, wargs: WriteArgs) !void {
         // TODO: check if this will exclude this code from being added at comptime
         if (CONFIG.SLOWDOWN != 0) std.Thread.sleep(CONFIG.SLOWDOWN);
         if (wargs.sleep != 0) std.Thread.sleep(wargs.sleep);
-        _ = if (wargs.cursor == .RESTORE_POS) try self.tty_writer.write(E.CURSOR_SAVE_POS);
+        _ = if (wargs.cursor == .RESTORE_POS) try self.buffer.appendSlice(E.CURSOR_SAVE_POS);
         if (wargs.cursor == .RESTORE_POS and CONFIG.TRACING) nbytes += E.CURSOR_SAVE_POS.len;
-        try self.tty_writer.print(fmt, args);
+        try self.buffer.writer().print(fmt, args);
         if (CONFIG.TRACING) nbytes += fmt.len;
-        _ = if (wargs.cursor == .RESTORE_POS) try self.tty_writer.write(E.CURSOR_RESTORE_POS);
+        _ = if (wargs.cursor == .RESTORE_POS) try self.buffer.appendSlice(E.CURSOR_RESTORE_POS);
         if (wargs.cursor == .RESTORE_POS and CONFIG.TRACING) nbytes += E.CURSOR_SAVE_POS.len;
+    }
+
+    pub fn flush(self: *RawMode) !void {
+        try self.tty.writeAll(self.buffer.items);
+        self.buffer.clearRetainingCapacity();
     }
 };

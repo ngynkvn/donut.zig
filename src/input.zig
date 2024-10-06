@@ -15,12 +15,12 @@ pub const default_keys = [_]Keymap{
 };
 
 pub const InputHandler = struct {
-    raw: tty.RawMode,
+    raw: *tty.RawMode,
     keymaps: []const Keymap,
     timer: std.time.Timer,
     poll_interval_ms: usize = 128,
     const npm = std.time.ns_per_ms;
-    pub fn init(raw: tty.RawMode, keymaps: ?[]Keymap) InputHandler {
+    pub fn init(raw: *tty.RawMode, keymaps: ?[]Keymap) InputHandler {
         return InputHandler{
             .raw = raw,
             .timer = std.time.Timer.start() catch @panic("Your system does not support timers!"),

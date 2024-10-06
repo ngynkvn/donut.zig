@@ -14,11 +14,11 @@ pub var nredraws: usize = 0;
 /// Plotter allows for drawing to a terminal using braille characters.
 pub const Plotter = struct {
     const Key = struct { u16, u16 };
-    raw: tty.RawMode,
+    raw: *tty.RawMode,
     buffer: std.AutoHashMap(Key, u8),
     width: f32 = 0,
     height: f32 = 0,
-    pub fn init(allocator: std.mem.Allocator, raw: tty.RawMode) Plotter {
+    pub fn init(allocator: std.mem.Allocator, raw: *tty.RawMode) Plotter {
         return Plotter{
             .raw = raw,
             .buffer = std.AutoHashMap(Key, u8).init(allocator),

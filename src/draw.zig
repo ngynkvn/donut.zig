@@ -29,7 +29,7 @@ pub const CONFIG = .{
 ///
 /// Then, stepping from t=[0, 2pi] the circle is then defined by
 ///     c = origin + (r * cos(t), r * sin(t))
-pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32) !void {
+pub fn circle(plt: *plotter.Plotter, raw: *tty.RawMode, r: f32, ox: f32, oy: f32) !void {
     const tmax = 2 * std.math.pi;
     var t: f32 = 0;
 
@@ -57,7 +57,7 @@ pub fn circle(plt: *plotter.Plotter, raw: tty.RawMode, r: f32, ox: f32, oy: f32)
     }
 }
 
-pub fn coords(plt: *plotter.Plotter, raw: tty.RawMode) !void {
+pub fn coords(plt: *plotter.Plotter, raw: *tty.RawMode) !void {
     for (0..raw.height - 1) |i| {
         try raw.goto(0, @intCast(i));
         try plt.plot(0, @floatFromInt(i));
@@ -69,7 +69,7 @@ pub fn coords(plt: *plotter.Plotter, raw: tty.RawMode) !void {
     }
 }
 
-pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
+pub fn sin(plt: *plotter.Plotter, raw: *tty.RawMode, shift: f32) !void {
     var timer = try std.time.Timer.start();
     var x: f32 = 0.0;
     // Clear the lines before rendering
@@ -93,7 +93,7 @@ pub fn sin(plt: *plotter.Plotter, raw: tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
-pub fn torus(plt: *plotter.Plotter, raw: tty.RawMode, a: f32, b: f32) !void {
+pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
     plt.clear();
 
     var npoints: usize = 0;
@@ -167,7 +167,7 @@ comptime {
         @compileError(&horiz ++ vert ++ " " ++ cornerdr ++ cornerdl ++ " " ++ cornerur ++ cornerul);
 }
 
-pub fn box(raw: tty.RawMode, point_top_left: Point, point_bottom_right: Point, clear_middle: bool) !void {
+pub fn box(raw: *tty.RawMode, point_top_left: Point, point_bottom_right: Point, clear_middle: bool) !void {
     const ptl = point_top_left;
     const pbr = point_bottom_right;
     const x0: u16 = @intFromFloat(if (ptl.x < pbr.x) ptl.x else pbr.x);
@@ -204,6 +204,7 @@ pub fn box(raw: tty.RawMode, point_top_left: Point, point_bottom_right: Point, c
             }
         }
     }
+    try raw.flush();
 }
 pub fn line(plt: *plotter.Plotter, a: Point, b: Point) !void {
     for (0..400) |t| {
