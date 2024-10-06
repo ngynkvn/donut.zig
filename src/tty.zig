@@ -98,7 +98,7 @@ pub const RawMode = struct {
         // IOCGWINSZ (io control get window size (?)) is a request signal for window size
         var ws: posix.winsize = .{ .row = 0, .col = 0, .xpixel = 0, .ypixel = 0 };
         // Get the window size via ioctl(2) call to tty
-        const result = system.ioctl(tty.handle, posix.T.IOCGWINSZ, &ws);
+        const result = system.ioctl(tty.handle, posix.T.IOCGWINSZ, @intFromPtr(&ws));
         if (posix.errno(result) != .SUCCESS) return error.IoctlReturnedNonZero;
 
         const width = ws.col;
