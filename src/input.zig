@@ -45,24 +45,7 @@ pub const InputHandler = struct {
     }
 
     pub fn waitFor(self: *InputHandler) Command {
-        var rawtcattr = posix.tcgetattr(self.raw.tty.handle) catch return self.pollWaitFor();
-        rawtcattr.cc[@intFromEnum(system.V.MIN)] = 1; // min bytes required for read
-        const rc = system.tcsetattr(self.raw.tty.handle, .FLUSH, &rawtcattr);
-        if (posix.errno(rc) != .SUCCESS) return self.pollWaitFor();
-
-        defer {
-            rawtcattr.cc[@intFromEnum(system.V.MIN)] = 0; // min bytes required for read
-            _ = system.tcsetattr(self.raw.tty.handle, .FLUSH, &rawtcattr);
-        }
-
-        var buffer: [4]u8 = undefined;
-        while (true) {
-            const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
-            const read = buffer[0..n];
-            for (self.keymaps) |keymap| {
-                if (std.mem.startsWith(u8, read, keymap.key)) return keymap.command;
-            }
-        }
+        return self.pollWaitFor();
     }
 
     pub fn pollWaitFor(self: *InputHandler) Command {
