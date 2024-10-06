@@ -274,12 +274,46 @@ fn project(r1: f32, r2: f32, k1: f32, k2: f32, a: f32, b: f32, t: f32, p: f32) P
     const cosp: f32 = @cos(p);
     var x = cx * (cosb * cosp + sina * sinb * sinp) - (cy * cosa * sinb);
     var y = cx * (cosp * sinb - cosb * sina * sinp) + (cy * cosa * cosb);
+    {
+        const Vec3 = @Vector(3, f32);
+        var point: Vec3 = .{ cx, cy, 0 };
+        point = Vec3{
+            @reduce(.Add, point * Vec3{ cosp, 0, sinp }),
+            @reduce(.Add, point * Vec3{ 0, 1, 0 }),
+            @reduce(.Add, point * Vec3{ -sinp, 0, cosp }),
+        };
+        point = Vec3{
+            @reduce(.Add, point * Vec3{ 1, 0, 0 }),
+            @reduce(.Add, point * Vec3{ 0, cosa, sina }),
+            @reduce(.Add, point * Vec3{ 0, -sina, cosa }),
+        };
+        point = Vec3{
+            @reduce(.Add, point * Vec3{ cosb, sinb, 0 }),
+            @reduce(.Add, point * Vec3{ -sinb, cosb, 0 }),
+            @reduce(.Add, point * Vec3{ 0, 0, 1 }),
+        };
+        std.log.debug("r1 {d:>4.2}, r2 {d:>4.2}, t {d:>4.2}, p {d:>4.2}, a {d:>4.2}, b {d:>4.2}", .{r1, r2, t, p, a, b});
+        std.log.debug("old={d:>4.3},{d:>4.3}", .{ x, y});
+        std.log.debug("new={d:>4.3},{d:>4.3}", .{point[0], point[1]});
+    }
     const ooz = 1 / (k2 + cosa * cx * sinp + (cy * sina));
     x = (k1 * 2 * x) * ooz;
     y = (k1 * y) * ooz;
     const L = cosp * cost * sinb - cosa * cost * sinp -
         sina * sint + cosb * (cosa * sint - cost * sina * sinp);
     return Projection{ .x = x, .y = y, .L = L };
+}
+
+comptime {
+    const Vec3 = @Vector(3, f32);
+    const p = Vec3{6, 0, 0};
+    const b = -0.38;
+        const point = Vec3{
+            @reduce(.Add, p * Vec3{ @cos(b), @sin(b), 0 }),
+            @reduce(.Add, p * Vec3{ -@sin(b), @cos(b), 0 }),
+            @reduce(.Add, p * Vec3{ 0, 0, 1 }),
+        };
+    @compileLog(point);
 }
 
 // shh I'm aliasing here
