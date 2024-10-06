@@ -1,5 +1,7 @@
 const std = @import("std");
 const tty = @import("tty.zig");
+const posix = std.posix;
+const system = posix.system;
 
 pub const Command = enum { quit, enter, kh, kj, kk, kl, pause };
 pub const Keymap = struct { key: []const u8, command: Command };
@@ -31,7 +33,6 @@ pub const InputHandler = struct {
         if (self.timer.read() < self.poll_interval_ms * npm) return null;
         self.timer.reset();
 
-        std.log.debug("poll", .{});
         var buffer: [4]u8 = undefined;
         const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
         const read = buffer[0..n];
@@ -44,6 +45,27 @@ pub const InputHandler = struct {
     }
 
     pub fn waitFor(self: *InputHandler) Command {
+        var rawtcattr = posix.tcgetattr(self.raw.tty.handle) catch return self.pollWaitFor();
+        rawtcattr.cc[@intFromEnum(system.V.MIN)] = 1; // min bytes required for read
+        const rc = system.tcsetattr(self.raw.tty.handle, .FLUSH, &rawtcattr);
+        if (posix.errno(rc) != .SUCCESS) return self.pollWaitFor();
+
+        defer {
+            rawtcattr.cc[@intFromEnum(system.V.MIN)] = 0; // min bytes required for read
+            _ = system.tcsetattr(self.raw.tty.handle, .FLUSH, &rawtcattr);
+        }
+
+        var buffer: [4]u8 = undefined;
+        while (true) {
+            const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
+            const read = buffer[0..n];
+            for (self.keymaps) |keymap| {
+                if (std.mem.startsWith(u8, read, keymap.key)) return keymap.command;
+            }
+        }
+    }
+
+    pub fn pollWaitFor(self: *InputHandler) Command {
         var buffer: [4]u8 = undefined;
         while (true) {
             if (self.timer.read() < self.poll_interval_ms * npm) {

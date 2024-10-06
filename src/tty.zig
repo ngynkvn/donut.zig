@@ -76,16 +76,16 @@ pub const RawMode = struct {
         // Some explanation of the flags can be found in the links above.
         // TODO: check out the other flags later
         // zig fmt: off
-        raw.lflag.ECHO   = false;                 // Disable echo        input
-        raw.lflag.ICANON = false;                 // Read    byte        by    byte
+        raw.lflag.ECHO   = false;                 // Disable echo input
+        raw.lflag.ICANON = false;                 // Read byte by byte
         raw.lflag.IEXTEN = false;                 // Disable <C-v>
-        raw.lflag.ISIG   = !CONFIG.HANDLE_SIGINT; // Disable <C-c>       and   <C-z>
-        raw.iflag.IXON   = false;                 // Disable <C-s>       and   <C-q>
+        raw.lflag.ISIG   = !CONFIG.HANDLE_SIGINT; // Disable <C-c> and <C-z>
+        raw.iflag.IXON   = false;                 // Disable <C-s> and <C-q>
         raw.iflag.ICRNL  = false;                 // Disable <C-m>
-        raw.iflag.BRKINT = false;                 // Break   condition   sends SIGINT
-        raw.iflag.INPCK  = false;                 // Enable  parity      checking
-        raw.iflag.ISTRIP = false;                 // Strip   8th         bit   of input byte
-        raw.oflag.OPOST  = false;                 // Disable translating "\n"  to "\r\n"
+        raw.iflag.BRKINT = false;                 // Break condition sends SIGINT
+        raw.iflag.INPCK  = false;                 // Enable parity checking
+        raw.iflag.ISTRIP = false;                 // Strip 8th bit of input byte
+        raw.oflag.OPOST  = false;                 // Disable translating "\n" to "\r\n"
         raw.cflag.CSIZE  = .CS8;
 
         raw.cc[@intFromEnum(system.V.MIN)]  = 0;  // min bytes required for read
