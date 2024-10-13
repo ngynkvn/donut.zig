@@ -8,8 +8,6 @@ const braille = @import("braille.zig");
 const raytrace = @import("raytrace.zig");
 const drawtests = @import("drawtests.zig");
 const E = tty.E;
-var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-const allocator = gpa.allocator();
 
 /// Run a bunch of test routines, continuing to next when 'Enter' is pressed.
 pub fn main() !void {
@@ -18,12 +16,14 @@ pub fn main() !void {
     defer log_file.close();
     const ttyh = try std.fs.openFileAbsolute(tty.CONFIG.TTY_HANDLE, .{ .mode = .read_write });
     defer ttyh.close();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
     // This is called being lazy
-    var raw = @constCast(&(try tty.RawMode.init(allocator, ttyh)));
+    var raw: *tty.RawMode = @constCast(&(try tty.RawMode.init(allocator, ttyh)));
     defer {
         const errno = raw.deinit() catch @panic("failed to write :(");
-        std.debug.print("{}\n", .{gpa.deinit()});
         if (errno != .SUCCESS) {
             @panic("no good");
         }
@@ -104,8 +104,7 @@ pub fn main() !void {
             tty.nbytes = 0;
             tty.gotos = 0;
             dirty = false;
-            try raw.flush();
-            while (timer_frame.read() < std.time.ns_per_ms * 16) std.Thread.sleep(std.time.ns_per_ms);
+            while (timer_frame.read() < std.time.ns_per_ms * 16) std.Thread.sleep(std.time.ns_per_ms) else try raw.flush();
         }
     }
 }

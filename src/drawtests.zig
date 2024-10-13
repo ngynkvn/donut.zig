@@ -37,5 +37,4 @@ pub fn test_circle(plot: *plotter.Plotter, raw: *tty.RawMode) !void {
     const elapsed: f32 = @floatFromInt(timer.lap());
     try raw.goto(0, 0);
     try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
-    try raw.flush();
 }

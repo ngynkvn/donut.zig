@@ -54,7 +54,7 @@ pub fn circle(plt: *plotter.Plotter, raw: *tty.RawMode, r: f32, ox: f32, oy: f32
             plotx,     bx,
             ploty,     by,
         });
-    }
+    } else try raw.flush();
 }
 
 pub fn coords(plt: *plotter.Plotter, raw: *tty.RawMode) !void {
@@ -121,8 +121,7 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
 
             try plt.plot(plotx, ploty);
             try raw.print(E.GOTO, .{ 2, 0 });
-        }
-        p = 0;
+        } else p = 0;
     }
     const ux: u16 = @intFromFloat(plotx);
     const uy: u16 = @intFromFloat(ploty);
