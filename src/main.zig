@@ -88,7 +88,7 @@ fn run(allocator: Allocator, ttyh: fs.File) !void {
             };
 
             if (paused) {
-                std.Thread.sleep(32 * std.time.ns_per_ms);
+                std.time.sleep(32 * std.time.ns_per_ms);
             } else {
                 dirty = true;
                 a += 0.05;
@@ -119,7 +119,7 @@ fn run(allocator: Allocator, ttyh: fs.File) !void {
             dirty = false;
             const tsleep = tracy.traceNamed(@src(), "sleeping");
             defer tsleep.end();
-            while (timer_frame.read() < std.time.ns_per_ms * 16) std.Thread.sleep(std.time.ns_per_ms) else try raw.flush();
+            while (timer_frame.read() < std.time.ns_per_ms * 16) std.time.sleep(std.time.ns_per_ms) else try raw.flush();
         }
     }
 }
