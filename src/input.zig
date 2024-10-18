@@ -52,7 +52,7 @@ pub const InputHandler = struct {
         var buffer: [4]u8 = undefined;
         while (true) {
             if (self.timer.read() < self.poll_interval_ms * npm) {
-                std.Thread.sleep(self.poll_interval_ms * npm);
+                std.time.sleep(self.poll_interval_ms * npm);
             }
             const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
             const read = buffer[0..n];

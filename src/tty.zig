@@ -160,15 +160,15 @@ pub const RawMode = struct {
     }
     /// raw write
     pub fn write(self: *RawMode, buf: []const u8) !usize {
-        if (CONFIG.SLOWDOWN != 0) std.Thread.sleep(CONFIG.SLOWDOWN);
+        if (CONFIG.SLOWDOWN != 0) std.time.sleep(CONFIG.SLOWDOWN);
         return try self.buffer.writer().write(buf);
     }
 
     pub const WriteArgs = struct { cursor: enum { KEEP, RESTORE_POS } = .KEEP, sleep: usize = 0 };
     pub fn printa(self: *RawMode, comptime fmt: []const u8, args: anytype, wargs: WriteArgs) !void {
         // TODO: check if this will exclude this code from being added at comptime
-        if (CONFIG.SLOWDOWN != 0) std.Thread.sleep(CONFIG.SLOWDOWN);
-        if (wargs.sleep != 0) std.Thread.sleep(wargs.sleep);
+        if (CONFIG.SLOWDOWN != 0) std.time.sleep(CONFIG.SLOWDOWN);
+        if (wargs.sleep != 0) std.time.sleep(wargs.sleep);
         _ = if (wargs.cursor == .RESTORE_POS) try self.buffer.appendSlice(E.CURSOR_SAVE_POS);
         if (wargs.cursor == .RESTORE_POS and CONFIG.TRACING) nbytes += E.CURSOR_SAVE_POS.len;
         try self.buffer.writer().print(fmt, args);

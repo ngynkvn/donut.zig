@@ -1,4 +1,7 @@
 const std = @import("std");
+const mem = std.mem;
+const fs = std.fs;
+const Allocator = mem.Allocator;
 
 const tty = @import("tty.zig");
 const draw = @import("draw.zig");
@@ -7,26 +10,33 @@ const plotter = @import("plotter.zig");
 const braille = @import("braille.zig");
 const raytrace = @import("raytrace.zig");
 const drawtests = @import("drawtests.zig");
+const tracy = @import("tracy.zig");
 const E = tty.E;
 
 /// Run a bunch of test routines, continuing to next when 'Enter' is pressed.
 pub fn main() !void {
     try init_logger();
-    std.log.scoped(.default).info("logging started", .{});
+    std.log.scoped(.default).info("logging started, tracy enabled? {}; enabled_allocation {}; enable_callstack {}", .{ tracy.enable, tracy.enable_allocation, tracy.enable_callstack });
     defer log_file.close();
     const ttyh = try std.fs.openFileAbsolute(tty.CONFIG.TTY_HANDLE, .{ .mode = .read_write });
     defer ttyh.close();
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer std.debug.print("{}\n", .{gpa.deinit()});
+    if (tracy.enable_allocation) {
+        var gpa_tracy = tracy.tracyAllocator(gpa.allocator());
+        return run(gpa_tracy.allocator(), ttyh);
+    }
+    return run(gpa.allocator(), ttyh);
+}
+
+fn run(allocator: Allocator, ttyh: fs.File) !void {
+    tracy.message("start");
 
     // This is called being lazy
     var raw: *tty.RawMode = @constCast(&(try tty.RawMode.init(allocator, ttyh)));
     defer {
-        const errno = raw.deinit() catch @panic("failed to write :(");
-        if (errno != .SUCCESS) {
-            @panic("no good");
-        }
+        const errno = raw.deinit() catch std.debug.panic("failed to write :(", .{});
+        if (errno != .SUCCESS) std.debug.panic("errno was {?}", .{errno});
     }
 
     var input_handler = input.InputHandler.init(raw, null);
@@ -62,6 +72,9 @@ pub fn main() !void {
         try raw.print(E.SET_ANSI_FG ++ E.CLEAR_SCREEN, .{3});
         var running = true;
         while (running) {
+            const tframe = tracy.traceNamed(@src(), "frame");
+            defer tframe.end();
+            defer tracy.frameMarkNamed("torus");
             if (input_handler.poll()) |cmd| switch (cmd) {
                 .enter => running = false,
                 .quit => running = false,
@@ -75,7 +88,7 @@ pub fn main() !void {
             };
 
             if (paused) {
-                std.Thread.sleep(32 * std.time.ns_per_ms);
+                std.time.sleep(32 * std.time.ns_per_ms);
             } else {
                 dirty = true;
                 a += 0.05;
@@ -104,7 +117,9 @@ pub fn main() !void {
             tty.nbytes = 0;
             tty.gotos = 0;
             dirty = false;
-            while (timer_frame.read() < std.time.ns_per_ms * 16) std.Thread.sleep(std.time.ns_per_ms) else try raw.flush();
+            const tsleep = tracy.traceNamed(@src(), "sleeping");
+            defer tsleep.end();
+            while (timer_frame.read() < std.time.ns_per_ms * 16) std.time.sleep(std.time.ns_per_ms) else try raw.flush();
         }
     }
 }

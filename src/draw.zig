@@ -93,7 +93,11 @@ pub fn sin(plt: *plotter.Plotter, raw: *tty.RawMode, shift: f32) !void {
 /// TODO:
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
+const tracy = @import("tracy.zig");
 pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
+    const trc = tracy.traceNamed(@src(), "torus");
+    defer trc.end();
+
     plt.clear();
 
     var npoints: usize = 0;
