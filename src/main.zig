@@ -129,7 +129,7 @@ fn init_logger() !void {
     log_file = try std.fs.cwd().createFile("./donut.log", .{});
 }
 
-pub const std_options = .{
+pub const std_options: std.Options = .{
     .logFn = logFn,
 };
 

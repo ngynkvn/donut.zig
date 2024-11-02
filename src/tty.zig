@@ -106,14 +106,13 @@ pub const RawMode = struct {
         std.log.debug("windowsize is {}x{}", .{ width, height });
         _ = try tty.write(CONFIG.START_SEQUENCE);
         const buffer = std.ArrayList(u8).init(allocator);
-        const term = .{
+        return .{
             .orig_termios = orig_termios,
             .tty = tty,
             .width = width,
             .height = height,
             .buffer = buffer,
         };
-        return term;
     }
     pub fn deinit(self: *RawMode) !posix.E {
         _ = try self.tty.write(CONFIG.EXIT_SEQUENCE);
