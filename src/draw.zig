@@ -138,8 +138,8 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
     const k2 = 5.0;
     const r1 = 1.0;
     const r2 = 3.0;
-    const tstep = 0.3;
-    const pstep = 0.2;
+    const tstep = 0.05;
+    const pstep = 0.05;
     const tn = @trunc((2 * std.math.pi) / tstep);
     const Trig = struct { sin: f32, cos: f32 };
     const tvals: [tn]Trig = comptime ret: {
