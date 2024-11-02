@@ -99,30 +99,82 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
     defer trc.end();
 
     plt.clear();
+    try raw.goto(0, raw.height - 10);
+    try raw.write(E.CLEAR_DOWN, .{});
 
-    var npoints: usize = 0;
-    npoints = 0;
-    var ndraws: usize = 0;
-    ndraws = 0;
-
-    var t: f32 = 0.0;
-    var p: f32 = 0;
-    var point: Projection = undefined;
-    var plotx: f32 = undefined;
-    var ploty: f32 = undefined;
-    // TODO: keymap
-    while (t < std.math.pi * 2) : (t += TSTEP) {
-        // TODO: keymap
-        while (p < std.math.pi * 2) : (p += PSTEP) {
-            point = project(R1, R2, K1, K2, a, b, t, p);
-            plotx = point.x + @as(f32, @floatFromInt(raw.width)) / 2;
-            ploty = point.y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
-            const L = point.L;
-
-            const color: u16 = if (L > 0) DRAW_COLORA else DRAW_COLORB;
-
-            try raw.print(E.SET_ANSI_FG, .{color});
-
+    { // INFO:
+        //
+        // To render a 3d object onto a 2d screen,
+        // you project the (x, y, z) in 3d space so
+        // that the corresponding 2D position is (x', y')
+        //
+        // screen position (x', y') is proportional to
+        // the 3d position, the projection works out to
+        // y'/z' = y/z
+        // y' = (yz')/z
+        // Setting z to some fixed constant k since donut will not move
+        //
+        // How do we draw a torus?
+        // A torus is just a circle that is
+        // swept around an axis to form a solid object.
+        // so you need:
+        //  - R1:  Circle Radius
+        //  - R2:  Inner Radius (Point to sweep around)
+        //  - t:   theta, 0-2pi for rotating around axis
+        //  - p:   phi, 0-2pi for rotating
+        //  2-D circle drawn in 3d space:
+        //  - (x,y,z) = (R2, 0, 0) + (R1cos(t), R1sin(t), 0)
+        //  - [sweeping a line around z]
+        //  Rotate circle in y-axis:
+        //
+        //                                [  cos(p)  0  sin(p) ]
+        // (R2 + R1cos(t), R1sin(t), 0) * [    0     1     0   ]
+        //       x           y       z    [ -sin(p)  0  cos(p) ]
+        //
+        // => (x*cos(p)-(z*sin(p)), y, x*sin(p)+z*cos(p))
+        // Then we just repeat this for the other [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations)
+    }
+    const k1 = 7.0;
+    const k2 = 6.0;
+    const r1 = 1.0;
+    const r2 = 3.0;
+    const tstep = 0.3;
+    const pstep = 0.3;
+    const tn = @round((2 * std.math.pi) / tstep);
+    const Trig = struct { sin: f32, cos: f32 };
+    const tvals: [tn]Trig = comptime ret: {
+        var gen: [tn]Trig = undefined;
+        for (0..tn) |i| {
+            const fi: f32 = @floatFromInt(i);
+            gen[i] = .{ .sin = @sin(fi * tstep), .cos = @cos(fi * tstep) };
+        }
+        break :ret gen;
+    };
+    for (tvals, 0..) |tlut, t| {
+        var p: f32 = 0;
+        while (p < 2 * std.math.pi) : (p += pstep) {
+            // So first, a circle.
+            const cx: f32 = r2 + r1 * tlut.cos;
+            const cy: f32 = (r1 * tlut.sin);
+            // Then apply the rotation to form the torus and movement
+            // zig fmt: off
+            const sina: f32 = @sin(a); const sinb: f32 = @sin(b); const sinp: f32 = @sin(p);
+            const cosa: f32 = @cos(a); const cosb: f32 = @cos(b); const cosp: f32 = @cos(p);
+            // zig fmt: on
+            var x = cx * (cosb * cosp + sina * sinb * sinp) - (cy * cosa * sinb);
+            var y = cx * (cosp * sinb - cosb * sina * sinp) + (cy * cosa * cosb);
+            const z = cosa * cx * sinp + (cy * sina);
+            x = (k1 * 2 * x) / (z + k2);
+            y = (k1 * y) / (z + k2);
+            const plotx = x + 80;
+            const ploty = y + 20;
+            try raw.write(E.HOME, .{});
+            try raw.write( //
+                "{d}x{d} | t={d:>4.2}, p={d:>4.2}\r\n" ++
+                "({d:>6.2},{d:>6.2},{d:>6.2})\r\n" ++
+                "({d:>6.2},{d:>6.2})", .{
+                raw.width, raw.height, @as(f32, @floatFromInt(t)) * tstep, p, x, y, z, plotx, ploty,
+            });
             try plt.plot(plotx, ploty);
             try raw.print(E.GOTO, .{ 2, 0 });
         } else p = 0;
