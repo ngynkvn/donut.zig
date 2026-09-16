@@ -92,11 +92,74 @@ pub fn sin(plt: *plotter.Plotter, raw: *tty.RawMode, shift: f32) !void {
 /// We will draw a donut!
 /// Adapted from https://www.a1k0n.net/2011/07/20/donut-math.html
 const tracy = @import("tracy.zig");
+const Sample = struct { position: @Vector(3, f32), normal: @Vector(3, f32) };
+
+// Preserve the original f32 sampling steps, but do the trigonometry at compile time.
+const samples = blk: {
+    @setEvalBranchQuota(100000);
+    var count: usize = 0;
+    var t: f32 = 0;
+    while (t < std.math.pi * 2) : (t += TSTEP) {
+        var p: f32 = 0;
+        while (p < std.math.pi * 2) : (p += PSTEP) count += 1;
+    }
+    var result: [count]Sample = undefined;
+    var index: usize = 0;
+    t = 0;
+    while (t < std.math.pi * 2) : (t += TSTEP) {
+        const sint = @sin(t);
+        const cost = @cos(t);
+        const radius = R2 + R1 * cost;
+        var p: f32 = 0;
+        while (p < std.math.pi * 2) : (p += PSTEP) {
+            const sinp = @sin(p);
+            const cosp = @cos(p);
+            result[index] = .{
+                .position = .{ radius * cosp, R1 * sint, radius * sinp },
+                .normal = .{ cost * cosp, sint, cost * sinp },
+            };
+            index += 1;
+        }
+    }
+    break :blk result;
+};
+
+const Rotation = struct {
+    x: @Vector(3, f32),
+    y: @Vector(3, f32),
+    z: @Vector(3, f32),
+    light: @Vector(3, f32),
+
+    fn init(a: f32, b: f32) Rotation {
+        const sina = @sin(a);
+        const cosa = @cos(a);
+        const sinb = @sin(b);
+        const cosb = @cos(b);
+        return .{
+            .x = .{ cosb, -cosa * sinb, sina * sinb },
+            .y = .{ sinb, cosa * cosb, -cosb * sina },
+            .z = .{ 0, sina, cosa },
+            .light = .{ sinb, cosb * cosa - sina, -cosa - cosb * sina },
+        };
+    }
+
+    fn projectSample(self: Rotation, sample: Sample) Projection {
+        const ooz = 1 / (K2 + @reduce(.Add, self.z * sample.position));
+        return .{
+            .x = (K1 * 2 * @reduce(.Add, self.x * sample.position)) * ooz,
+            .y = (K1 * @reduce(.Add, self.y * sample.position)) * ooz,
+            .L = @reduce(.Add, self.light * sample.normal),
+        };
+    }
+};
+
 pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
     const trc = tracy.traceNamed(@src(), "torus");
     defer trc.end();
 
     plt.clear();
+    const rotation = Rotation.init(a, b);
+    var sample_index: usize = 0;
 
     var npoints: usize = 0;
     npoints = 0;
@@ -112,7 +175,8 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
     while (t < std.math.pi * 2) : (t += TSTEP) {
         // TODO: keymap
         while (p < std.math.pi * 2) : (p += PSTEP) {
-            point = project(R1, R2, K1, K2, a, b, t, p);
+            point = rotation.projectSample(samples[sample_index]);
+            sample_index += 1;
             plotx = point.x + @as(f32, @floatFromInt(raw.width)) / 2;
             ploty = point.y + @as(f32, @floatFromInt(raw.height -| 5)) / 2;
             const L = point.L;
@@ -319,5 +383,25 @@ test "torus rotation clips safely on small terminals" {
             }
             raw.buffer.clearRetainingCapacity();
         }
+    }
+}
+
+test "cached projection matches original torus geometry and lighting" {
+    for ([_][2]f32{ .{ 0, -0.4 }, .{ 1.95, 0.38 }, .{ 3, 2 }, .{ -2, 5 } }) |angles| {
+        const rotation = Rotation.init(angles[0], angles[1]);
+        var index: usize = 0;
+        var t: f32 = 0;
+        while (t < std.math.pi * 2) : (t += TSTEP) {
+            var p: f32 = 0;
+            while (p < std.math.pi * 2) : (p += PSTEP) {
+                const original = project(R1, R2, K1, K2, angles[0], angles[1], t, p);
+                const cached = rotation.projectSample(samples[index]);
+                try std.testing.expectApproxEqAbs(original.x, cached.x, 0.0001);
+                try std.testing.expectApproxEqAbs(original.y, cached.y, 0.0001);
+                try std.testing.expectApproxEqAbs(original.L, cached.L, 0.00001);
+                index += 1;
+            }
+        }
+        try std.testing.expectEqual(samples.len, index);
     }
 }
