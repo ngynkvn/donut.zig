@@ -1,9 +1,9 @@
 /// A set of drawing routines to terminal
 const std = @import("std");
 const tty = @import("tty.zig");
-const braille = @import("braille.zig");
 const plotter = @import("plotter.zig");
 const E = tty.E;
+const Frame = @import("frame.zig").Frame;
 
 // Config
 // TODO: keymaps
@@ -153,58 +153,18 @@ const Rotation = struct {
     }
 };
 
-pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
+pub fn torus(frame: *Frame, raw: *tty.RawMode, a: f32, b: f32) !void {
     const trc = tracy.traceNamed(@src(), "torus");
     defer trc.end();
-
-    plt.clear();
+    frame.clear();
     const rotation = Rotation.init(a, b);
-    var sample_index: usize = 0;
-
-    var npoints: usize = 0;
-    npoints = 0;
-    var ndraws: usize = 0;
-    ndraws = 0;
-
-    var t: f32 = 0.0;
-    var p: f32 = 0;
-    var point: Projection = undefined;
-    var plotx: f32 = undefined;
-    var ploty: f32 = undefined;
-    // TODO: keymap
-    while (t < std.math.pi * 2) : (t += TSTEP) {
-        // TODO: keymap
-        while (p < std.math.pi * 2) : (p += PSTEP) {
-            point = rotation.projectSample(samples[sample_index]);
-            sample_index += 1;
-            plotx = point.x + @as(f32, @floatFromInt(raw.width)) / 2;
-            ploty = point.y + @as(f32, @floatFromInt(raw.height -| 5)) / 2;
-            const L = point.L;
-
-            const color: u16 = if (L > 0) DRAW_COLORA else DRAW_COLORB;
-
-            try raw.print(E.SET_ANSI_FG, .{color});
-
-            try plt.plot(plotx, ploty);
-            try raw.print(E.GOTO, .{ 2, 0 });
-        } else p = 0;
+    const center_x = @as(f32, @floatFromInt(frame.width)) / 2;
+    const center_y = @as(f32, @floatFromInt(frame.height)) / 2;
+    for (samples) |sample| {
+        const point = rotation.projectSample(sample);
+        frame.plot(point.x + center_x, point.y + center_y, if (point.L > 0) DRAW_COLORA else DRAW_COLORB);
     }
-    const ux = @trunc(plotx);
-    const uy = @trunc(ploty);
-    try raw.print( //
-        "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4.2}, b={d:>4.2}\r\n" ++
-            "real_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
-            "term_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
-            "ncalls={d:>6.2},nfresh={d:>6.2}\r\n" ++
-            "nredraws={d:>6.2}", .{
-            raw.width,        raw.height, t,              p,
-            a,                b,          point.x,        point.y,
-            ux,               uy,         braille.ncalls, braille.nfresh,
-            braille.nredraws,
-        });
-    braille.ncalls = 0;
-    braille.nfresh = 0;
-    braille.nredraws = 0;
+    try frame.present(raw);
 }
 
 const M = @This();
@@ -368,7 +328,7 @@ test "torus rotation clips safely on small terminals" {
             .buffer = std.Io.Writer.Allocating.init(std.testing.allocator),
         };
         defer raw.buffer.deinit();
-        var plot = plotter.Plotter.init(std.testing.allocator, &raw);
+        var plot = try Frame.init(std.testing.allocator, raw.width, raw.height);
         defer plot.deinit();
         var a: f32 = 0;
         var b: f32 = -0.4;
@@ -376,11 +336,7 @@ test "torus rotation clips safely on small terminals" {
             a += 0.05;
             b += 0.02;
             try torus(&plot, &raw, a, b);
-            var keys = plot.buffer.keyIterator();
-            while (keys.next()) |key| {
-                try std.testing.expect(key[0] < raw.width);
-                try std.testing.expect(key[1] < raw.height);
-            }
+            try std.testing.expectEqual(@as(usize, raw.width) * (raw.height -| Frame.header_rows), plot.previous.len);
             raw.buffer.clearRetainingCapacity();
         }
     }

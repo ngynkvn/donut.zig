@@ -65,6 +65,8 @@ fn run(allocator: Allocator, io: Io, ttyh: Io.File) !void {
 
     // Torus test
     {
+        var frame = try @import("frame.zig").Frame.init(allocator, raw.width, raw.height);
+        defer frame.deinit();
         tty.nbytes = 0;
         var a: f32 = 0.0;
         var b: f32 = -0.4;
@@ -99,22 +101,18 @@ fn run(allocator: Allocator, io: Io, ttyh: Io.File) !void {
                 continue;
             }
             const frame_start = Io.Clock.awake.now(io);
-            try raw.gotorc(8, 0);
-            try raw.print(E.CLEAR_DOWN, .{});
-            try draw.torus(&plot, raw, a, b);
-            try raw.gotorc(4, raw.width -| 40);
-
-            const elapsed: f32 = @floatFromInt(frame_start.untilNow(io, .awake).toNanoseconds());
-            const nps: f32 = @floatFromInt(std.time.ns_per_s);
-            const npms: f32 = @floatFromInt(std.time.ns_per_ms);
-            const nkb: f32 = @as(f32, @floatFromInt(tty.nbytes)) / 1024.0;
-            const nkbdraw: f32 = @as(f32, @floatFromInt(tty.gotos)) / 1024.0;
-            const kb_per_sec = (nkb * nps) / elapsed;
-            try raw.print(
-                "{d:>6.2}kb , {d:>6.2} from goto\n" ++ E.CURSOR_BACKWARDS ++
-                    "{d:>6.2}ms , {d:>6.2}kb/s",
-                .{ nkb, nkbdraw, 20, elapsed / npms, kb_per_sec },
-            );
+            try draw.torus(&frame, raw, a, b);
+            const elapsed = frame_start.untilNow(io, .awake).toNanoseconds();
+            var status_buffer: [160]u8 = undefined;
+            const status = try std.fmt.bufPrint(&status_buffer, "{d:.2} ms | {d} bytes/frame | a={d:.2} b={d:.2}", .{
+                @as(f64, @floatFromInt(elapsed)) / std.time.ns_per_ms,
+                raw.buffer.written().len,
+                a,
+                b,
+            });
+            try raw.gotorc(1, 1);
+            try raw.print(E.SET_ANSI_FG ++ E.CLEAR_LINE, .{3});
+            _ = try raw.write(status[0..@min(status.len, raw.width)]);
             tty.nbytes = 0;
             tty.gotos = 0;
             dirty = false;
