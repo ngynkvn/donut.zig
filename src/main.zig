@@ -116,9 +116,11 @@ fn run(allocator: Allocator, io: Io, ttyh: Io.File) !void {
             tty.nbytes = 0;
             tty.gotos = 0;
             dirty = false;
+            try raw.flush();
             const tsleep = tracy.traceNamed(@src(), "sleeping");
             defer tsleep.end();
-            while (frame_start.untilNow(io, .awake).toNanoseconds() < std.time.ns_per_ms * 16) try io.sleep(.fromMilliseconds(1), .awake) else try raw.flush();
+            const remaining = 16 * std.time.ns_per_ms - frame_start.untilNow(io, .awake).toNanoseconds();
+            if (remaining > 0) try io.sleep(.fromNanoseconds(remaining), .awake);
         }
     }
 }
