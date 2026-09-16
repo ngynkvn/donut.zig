@@ -60,6 +60,18 @@ pub fn build(b: *std.Build) void {
 
     addOptionalTracy(b, exe_check, target, tracy, exe_options);
 
+    const benchmark = b.addExecutable(.{
+        .name = "donut-benchmark",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/benchmark.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    addOptionalTracy(b, benchmark, target, tracy, exe_options);
+    const run_benchmark = b.addRunArtifact(benchmark);
+    b.step("bench", "Measure rendering time and output bytes without terminal I/O").dependOn(&run_benchmark.step);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
 

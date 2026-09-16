@@ -17,7 +17,10 @@ zig build
 zig build run
 zig build test
 zig build check
+zig build bench -Doptimize=ReleaseFast
 ```
+
+The benchmark measures 2,000 animation frames at 80×24 without terminal I/O or frame pacing, reporting rendering time and emitted bytes per frame.
 
 ## Preface
 
