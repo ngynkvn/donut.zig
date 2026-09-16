@@ -8,6 +8,17 @@ It's a spinning donut in the terminal! (Running in Wezterm and Kitty above)
 
 My take on [Andy Sloane's excellent article](https://www.a1k0n.net/2011/07/20/donut-math.html) using braille characters as a plotting device for the terminal.
 
+## Build and run
+
+Requires Zig 0.16.0 and a terminal with braille character support.
+
+```sh
+zig build
+zig build run
+zig build test
+zig build check
+```
+
 ## Preface
 
 Code is kind of buggy. This was my first "project" in zig

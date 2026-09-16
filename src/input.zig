@@ -19,19 +19,19 @@ pub const default_keys = [_]Keymap{
 pub const InputHandler = struct {
     raw: *tty.RawMode,
     keymaps: []const Keymap,
-    timer: std.time.Timer,
+    last_poll: std.Io.Timestamp,
     poll_interval_ms: usize = 128,
     const npm = std.time.ns_per_ms;
     pub fn init(raw: *tty.RawMode, keymaps: ?[]Keymap) InputHandler {
         return InputHandler{
             .raw = raw,
-            .timer = std.time.Timer.start() catch @panic("Your system does not support timers!"),
+            .last_poll = std.Io.Clock.awake.now(raw.io),
             .keymaps = keymaps orelse &default_keys,
         };
     }
     pub fn poll(self: *InputHandler) ?Command {
-        if (self.timer.read() < self.poll_interval_ms * npm) return null;
-        self.timer.reset();
+        if (self.last_poll.untilNow(self.raw.io, .awake).toNanoseconds() < self.poll_interval_ms * npm) return null;
+        self.last_poll = std.Io.Clock.awake.now(self.raw.io);
 
         var buffer: [4]u8 = undefined;
         const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
@@ -51,9 +51,10 @@ pub const InputHandler = struct {
     pub fn pollWaitFor(self: *InputHandler) Command {
         var buffer: [4]u8 = undefined;
         while (true) {
-            if (self.timer.read() < self.poll_interval_ms * npm) {
-                std.time.sleep(self.poll_interval_ms * npm);
+            if (self.last_poll.untilNow(self.raw.io, .awake).toNanoseconds() < self.poll_interval_ms * npm) {
+                self.raw.io.sleep(.fromNanoseconds(self.poll_interval_ms * npm), .awake) catch return .quit;
             }
+            self.last_poll = std.Io.Clock.awake.now(self.raw.io);
             const n = self.raw.read(&buffer) catch @panic("Unable to read from tty");
             const read = buffer[0..n];
             for (self.keymaps) |keymap| {

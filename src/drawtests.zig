@@ -8,12 +8,12 @@ const plotter = @import("plotter.zig");
 pub fn test_line(plot: *plotter.Plotter, raw: *tty.RawMode) !void {
     const rw: f32 = @floatFromInt(raw.width);
     const rh: f32 = @floatFromInt(raw.height);
-    var timer = try std.time.Timer.start();
+    const start = std.Io.Clock.awake.now(raw.io);
     try draw.line(plot, .{ .x = 0, .y = rh - 0.1 }, .{ .x = rw, .y = rh - 0.1 });
     try draw.line(plot, .{ .x = 0, .y = rh - 1 }, .{ .x = rw, .y = rh - 1 });
     try draw.line(plot, .{ .x = 0, .y = rh - 2 }, .{ .x = rw, .y = rh - 2 });
     try raw.goto(0, raw.height);
-    const elapsed: f32 = @floatFromInt(timer.lap());
+    const elapsed: f32 = @floatFromInt(start.untilNow(raw.io, .awake).toNanoseconds());
     try draw.box(raw, .{ .x = 5, .y = rh - 5 }, .{ .x = 80, .y = rh - 20 }, false);
     try raw.goto(6, raw.height - 6);
     try raw.print("{d} ms." ++ tty.E.CURSOR_DOWN, .{ (elapsed) / std.time.ns_per_ms, 1 });
@@ -23,7 +23,7 @@ pub fn test_line(plot: *plotter.Plotter, raw: *tty.RawMode) !void {
 
 /// Circle test
 pub fn test_circle(plot: *plotter.Plotter, raw: *tty.RawMode) !void {
-    var timer = try std.time.Timer.start();
+    const start = std.Io.Clock.awake.now(raw.io);
     try draw.circle(plot, raw, 20, 50, 30);
     try draw.circle(plot, raw, 5, 40, 36);
     try draw.circle(plot, raw, 3, 60, 32);
@@ -34,7 +34,7 @@ pub fn test_circle(plot: *plotter.Plotter, raw: *tty.RawMode) !void {
         .{ .x = 58, .y = 12 },
     );
     try draw.coords(plot, raw);
-    const elapsed: f32 = @floatFromInt(timer.lap());
+    const elapsed: f32 = @floatFromInt(start.untilNow(raw.io, .awake).toNanoseconds());
     try raw.goto(0, 0);
     try raw.print("{d} ms.", .{(elapsed) / std.time.ns_per_ms});
 }

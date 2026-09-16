@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const fs = std.fs;
+const Io = std.Io;
 const Allocator = mem.Allocator;
 
 const tty = @import("tty.zig");
@@ -14,29 +14,30 @@ const tracy = @import("tracy.zig");
 const E = tty.E;
 
 /// Run a bunch of test routines, continuing to next when 'Enter' is pressed.
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    log_io = init.io;
     try init_logger();
     std.log.scoped(.default).info("logging started, tracy enabled? {}; enabled_allocation {}; enable_callstack {}", .{ tracy.enable, tracy.enable_allocation, tracy.enable_callstack });
-    defer log_file.close();
-    const ttyh = try std.fs.openFileAbsolute(tty.CONFIG.TTY_HANDLE, .{ .mode = .read_write });
-    defer ttyh.close();
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer log_file.close(init.io);
+    const ttyh = try Io.Dir.openFileAbsolute(init.io, tty.CONFIG.TTY_HANDLE, .{ .mode = .read_write });
+    defer ttyh.close(init.io);
+    var gpa = std.heap.DebugAllocator(.{}).init;
     defer std.debug.print("{}\n", .{gpa.deinit()});
     if (tracy.enable_allocation) {
         var gpa_tracy = tracy.tracyAllocator(gpa.allocator());
-        return run(gpa_tracy.allocator(), ttyh);
+        return run(gpa_tracy.allocator(), init.io, ttyh);
     }
-    return run(gpa.allocator(), ttyh);
+    return run(gpa.allocator(), init.io, ttyh);
 }
 
-fn run(allocator: Allocator, ttyh: fs.File) !void {
+fn run(allocator: Allocator, io: Io, ttyh: Io.File) !void {
     tracy.message("start");
 
-    // This is called being lazy
-    var raw: *tty.RawMode = @constCast(&(try tty.RawMode.init(allocator, ttyh)));
+    var raw_mode = try tty.RawMode.init(allocator, io, ttyh);
+    const raw = &raw_mode;
     defer {
         const errno = raw.deinit() catch std.debug.panic("failed to write :(", .{});
-        if (errno != .SUCCESS) std.debug.panic("errno was {?}", .{errno});
+        if (errno != .SUCCESS) std.debug.panic("errno was {}", .{errno});
     }
 
     var input_handler = input.InputHandler.init(raw, null);
@@ -88,7 +89,7 @@ fn run(allocator: Allocator, ttyh: fs.File) !void {
             };
 
             if (paused) {
-                std.time.sleep(32 * std.time.ns_per_ms);
+                try io.sleep(.fromMilliseconds(32), .awake);
             } else {
                 dirty = true;
                 a += 0.05;
@@ -97,13 +98,13 @@ fn run(allocator: Allocator, ttyh: fs.File) !void {
             if (!dirty) {
                 continue;
             }
-            var timer_frame = try std.time.Timer.start();
+            const frame_start = Io.Clock.awake.now(io);
             try raw.gotorc(8, 0);
             try raw.print(E.CLEAR_DOWN, .{});
             try draw.torus(&plot, raw, a, b);
             try raw.gotorc(4, raw.width - 40);
 
-            const elapsed: f32 = @floatFromInt(timer_frame.read());
+            const elapsed: f32 = @floatFromInt(frame_start.untilNow(io, .awake).toNanoseconds());
             const nps: f32 = @floatFromInt(std.time.ns_per_s);
             const npms: f32 = @floatFromInt(std.time.ns_per_ms);
             const nkb: f32 = @as(f32, @floatFromInt(tty.nbytes)) / 1024.0;
@@ -119,14 +120,15 @@ fn run(allocator: Allocator, ttyh: fs.File) !void {
             dirty = false;
             const tsleep = tracy.traceNamed(@src(), "sleeping");
             defer tsleep.end();
-            while (timer_frame.read() < std.time.ns_per_ms * 16) std.time.sleep(std.time.ns_per_ms) else try raw.flush();
+            while (frame_start.untilNow(io, .awake).toNanoseconds() < std.time.ns_per_ms * 16) try io.sleep(.fromMilliseconds(1), .awake) else try raw.flush();
         }
     }
 }
 
-var log_file: std.fs.File = undefined;
+var log_file: Io.File = undefined;
+var log_io: Io = undefined;
 fn init_logger() !void {
-    log_file = try std.fs.cwd().createFile("./donut.log", .{});
+    log_file = try Io.Dir.cwd().createFile(log_io, "./donut.log", .{});
 }
 
 pub const std_options: std.Options = .{
@@ -149,10 +151,12 @@ pub fn logFn(
 
     const prefix = "[" ++ comptime level.asText() ++ "] " ++ scope_prefix;
 
-    log_file.lock(.exclusive) catch return;
-    defer log_file.unlock();
-    const writer = log_file.writer();
-    nosuspend writer.print(prefix ++ format ++ "\n", args) catch return;
+    log_file.lock(log_io, .exclusive) catch return;
+    defer log_file.unlock(log_io);
+    var buffer: [4096]u8 = undefined;
+    var writer = log_file.writerStreaming(log_io, &buffer);
+    writer.interface.print(prefix ++ format ++ "\n", args) catch return;
+    writer.interface.flush() catch return;
 }
 
 // Tests

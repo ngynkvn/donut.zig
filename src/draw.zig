@@ -70,7 +70,7 @@ pub fn coords(plt: *plotter.Plotter, raw: *tty.RawMode) !void {
 }
 
 pub fn sin(plt: *plotter.Plotter, raw: *tty.RawMode, shift: f32) !void {
-    var timer = try std.time.Timer.start();
+    const start = std.Io.Clock.awake.now(raw.io);
     var x: f32 = 0.0;
     // Clear the lines before rendering
     for (1..5) |y| {
@@ -80,12 +80,10 @@ pub fn sin(plt: *plotter.Plotter, raw: *tty.RawMode, shift: f32) !void {
     try raw.print(E.SET_ANSI_FG, .{2});
     while (x < @as(f32, @floatFromInt(raw.width))) : (x += 0.1) {
         const y = @sin(x + shift) * 2 + 3.0;
-        const c = try plt.plot(x, y);
-        try raw.goto(@intFromFloat(x), @intFromFloat(y));
-        _ = try raw.tty.write(&c);
+        try plt.plot(x, y);
     }
 
-    const elapsed: f32 = @floatFromInt(timer.lap());
+    const elapsed: f32 = @floatFromInt(start.untilNow(raw.io, .awake).toNanoseconds());
     try raw.goto(24, 0);
     try raw.print("{d} ms.", .{elapsed / std.time.ns_per_ms});
 }
@@ -131,15 +129,15 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
     const uy: u16 = @intFromFloat(ploty);
     try raw.print( //
         "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4.2}, b={d:>4.2}\r\n" ++
-        "real_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
-        "term_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
-        "ncalls={d:>6.2},nfresh={d:>6.2}\r\n" ++
-        "nredraws={d:>6.2}", .{
-        raw.width,        raw.height, t,              p,
-        a,                b,          point.x,        point.y,
-        ux,               uy,         braille.ncalls, braille.nfresh,
-        braille.nredraws,
-    });
+            "real_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
+            "term_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
+            "ncalls={d:>6.2},nfresh={d:>6.2}\r\n" ++
+            "nredraws={d:>6.2}", .{
+            raw.width,        raw.height, t,              p,
+            a,                b,          point.x,        point.y,
+            ux,               uy,         braille.ncalls, braille.nfresh,
+            braille.nredraws,
+        });
     braille.ncalls = 0;
     braille.nfresh = 0;
     braille.nredraws = 0;

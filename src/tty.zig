@@ -55,11 +55,12 @@ pub var nbytes: usize = 0;
 pub var gotos: usize = 0;
 pub const RawMode = struct {
     orig_termios: posix.termios,
-    tty: std.fs.File,
+    tty: std.Io.File,
+    io: std.Io,
     width: u16,
     height: u16,
-    buffer: std.ArrayList(u8),
-    pub const Error = std.posix.WriteError;
+    buffer: std.Io.Writer.Allocating,
+    pub const Error = std.Io.Writer.Error;
     pub const CursorPos = struct { row: usize, col: usize };
 
     /// Enter "raw mode", returning a struct that wraps around the provided tty file
@@ -70,7 +71,7 @@ pub const RawMode = struct {
     ///
     /// Explanation here: https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
     /// https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
-    pub fn init(allocator: std.mem.Allocator, tty: std.fs.File) !RawMode {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, tty: std.Io.File) !RawMode {
         const orig_termios = try posix.tcgetattr(tty.handle);
         var raw = orig_termios;
         // Some explanation of the flags can be found in the links above.
@@ -104,18 +105,19 @@ pub const RawMode = struct {
         const width = ws.col;
         const height = ws.row;
         std.log.debug("windowsize is {}x{}", .{ width, height });
-        _ = try tty.write(CONFIG.START_SEQUENCE);
-        const buffer = std.ArrayList(u8).init(allocator);
+        try tty.writeStreamingAll(io, CONFIG.START_SEQUENCE);
+        const buffer = std.Io.Writer.Allocating.init(allocator);
         return .{
             .orig_termios = orig_termios,
             .tty = tty,
+            .io = io,
             .width = width,
             .height = height,
             .buffer = buffer,
         };
     }
     pub fn deinit(self: *RawMode) !posix.E {
-        _ = try self.tty.write(CONFIG.EXIT_SEQUENCE);
+        try self.tty.writeStreamingAll(self.io, CONFIG.EXIT_SEQUENCE);
         defer self.buffer.deinit();
         const rc = system.tcsetattr(self.tty.handle, .FLUSH, &self.orig_termios);
         return posix.errno(rc);
@@ -138,10 +140,10 @@ pub const RawMode = struct {
         return .{ self.height - y, x };
     }
     pub fn query(self: *RawMode) !CursorPos {
-        _ = try self.tty.write(E.REPORT_CURSOR_POS);
+        try self.tty.writeStreamingAll(self.io, E.REPORT_CURSOR_POS);
         // TODO: make this more durable
         var buf: [32]u8 = undefined;
-        const n = try self.tty.read(&buf);
+        const n = try self.tty.readStreaming(self.io, &.{&buf});
         if (!std.mem.startsWith(u8, &buf, E.ESC)) return error.UnknownResponse;
         const semi = std.mem.indexOf(u8, &buf, ";") orelse return error.ParseError;
         const row = try std.fmt.parseUnsigned(usize, buf[2..semi], 10);
@@ -150,7 +152,12 @@ pub const RawMode = struct {
     }
     /// read input
     pub fn read(self: *RawMode, buffer: []u8) !usize {
-        return self.tty.read(buffer);
+        // With VMIN=0 and VTIME=0, a zero-byte read means no key is ready.
+        // std.Io reports that POSIX result as EndOfStream.
+        return self.tty.readStreaming(self.io, &.{buffer}) catch |err| switch (err) {
+            error.EndOfStream => 0,
+            else => return err,
+        };
     }
 
     /// print to screen via fmt string
@@ -159,25 +166,26 @@ pub const RawMode = struct {
     }
     /// raw write
     pub fn write(self: *RawMode, buf: []const u8) !usize {
-        if (CONFIG.SLOWDOWN != 0) std.time.sleep(CONFIG.SLOWDOWN);
-        return try self.buffer.writer().write(buf);
+        if (CONFIG.SLOWDOWN != 0) try self.io.sleep(.fromNanoseconds(CONFIG.SLOWDOWN), .awake);
+        try self.buffer.writer.writeAll(buf);
+        return buf.len;
     }
 
     pub const WriteArgs = struct { cursor: enum { KEEP, RESTORE_POS } = .KEEP, sleep: usize = 0 };
     pub fn printa(self: *RawMode, comptime fmt: []const u8, args: anytype, wargs: WriteArgs) !void {
         // TODO: check if this will exclude this code from being added at comptime
-        if (CONFIG.SLOWDOWN != 0) std.time.sleep(CONFIG.SLOWDOWN);
-        if (wargs.sleep != 0) std.time.sleep(wargs.sleep);
-        _ = if (wargs.cursor == .RESTORE_POS) try self.buffer.appendSlice(E.CURSOR_SAVE_POS);
+        if (CONFIG.SLOWDOWN != 0) try self.io.sleep(.fromNanoseconds(CONFIG.SLOWDOWN), .awake);
+        if (wargs.sleep != 0) try self.io.sleep(.fromNanoseconds(wargs.sleep), .awake);
+        _ = if (wargs.cursor == .RESTORE_POS) try self.buffer.writer.writeAll(E.CURSOR_SAVE_POS);
         if (wargs.cursor == .RESTORE_POS and CONFIG.TRACING) nbytes += E.CURSOR_SAVE_POS.len;
-        try self.buffer.writer().print(fmt, args);
+        try self.buffer.writer.print(fmt, args);
         if (CONFIG.TRACING) nbytes += fmt.len;
-        _ = if (wargs.cursor == .RESTORE_POS) try self.buffer.appendSlice(E.CURSOR_RESTORE_POS);
+        _ = if (wargs.cursor == .RESTORE_POS) try self.buffer.writer.writeAll(E.CURSOR_RESTORE_POS);
         if (wargs.cursor == .RESTORE_POS and CONFIG.TRACING) nbytes += E.CURSOR_SAVE_POS.len;
     }
 
     pub fn flush(self: *RawMode) !void {
-        try self.tty.writeAll(self.buffer.items);
+        try self.tty.writeStreamingAll(self.io, self.buffer.written());
         self.buffer.clearRetainingCapacity();
     }
 };
