@@ -102,7 +102,7 @@ fn run(allocator: Allocator, io: Io, ttyh: Io.File) !void {
             try raw.gotorc(8, 0);
             try raw.print(E.CLEAR_DOWN, .{});
             try draw.torus(&plot, raw, a, b);
-            try raw.gotorc(4, raw.width - 40);
+            try raw.gotorc(4, raw.width -| 40);
 
             const elapsed: f32 = @floatFromInt(frame_start.untilNow(io, .awake).toNanoseconds());
             const nps: f32 = @floatFromInt(std.time.ns_per_s);

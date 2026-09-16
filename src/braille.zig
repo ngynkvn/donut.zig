@@ -34,7 +34,13 @@ pub const Plotter = struct {
         self.buffer.clearRetainingCapacity();
     }
 
+    fn contains(self: *const Plotter, x: f32, y: f32) bool {
+        // Check before integer conversion; this also rejects NaN and infinity.
+        return x >= 0 and x < self.width and y >= 0 and y < self.height;
+    }
+
     pub fn erase(self: *Plotter, x: f32, y: f32) !void {
+        if (!self.contains(x, y)) return;
         const key = Key{ @intFromFloat(x), @intFromFloat(y) };
         const sx = @trunc(@mod(x, 1) * 2);
         const sy = @trunc(@mod(y, 1) * 4);
@@ -46,6 +52,7 @@ pub const Plotter = struct {
     }
 
     pub fn plot(self: *Plotter, x: f32, y: f32) !void {
+        if (!self.contains(x, y)) return;
         // NOTE: explore vectors
         const ux: u16 = @intFromFloat(x);
         const uy: u16 = @intFromFloat(y);
@@ -139,4 +146,34 @@ test "braille accessor" {
             setBbit(0, 1, 3),
         );
     }
+}
+
+test "plotter clips off-screen and non-finite coordinates" {
+    var raw: tty.RawMode = .{
+        .orig_termios = undefined,
+        .tty = undefined,
+        .io = std.testing.io,
+        .width = 80,
+        .height = 24,
+        .buffer = std.Io.Writer.Allocating.init(std.testing.allocator),
+    };
+    defer raw.buffer.deinit();
+    var plotter = Plotter.init(std.testing.allocator, &raw);
+    defer plotter.deinit();
+
+    for ([_][2]f32{
+        .{ 40, -0.5 },              .{ -0.5, 12 },               .{ 80, 12 },                .{ 40, 24 },
+        .{ 40, -100000 },           .{ 100000, 12 },             .{ std.math.nan(f32), 12 }, .{ 40, std.math.nan(f32) },
+        .{ std.math.inf(f32), 12 }, .{ 40, -std.math.inf(f32) },
+    }) |point| {
+        try plotter.plot(point[0], point[1]);
+        try plotter.erase(point[0], point[1]);
+    }
+    try std.testing.expectEqual(@as(u32, 0), plotter.buffer.count());
+    try std.testing.expectEqual(@as(usize, 0), raw.buffer.written().len);
+
+    try plotter.plot(0, 0);
+    try plotter.plot(79.5, 23.75);
+    try std.testing.expectEqual(setBbit(0, 0, 0), plotter.buffer.get(.{ 0, 0 }).?);
+    try std.testing.expectEqual(setBbit(0, 1, 3), plotter.buffer.get(.{ 79, 23 }).?);
 }

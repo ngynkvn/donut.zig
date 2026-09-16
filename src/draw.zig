@@ -114,7 +114,7 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
         while (p < std.math.pi * 2) : (p += PSTEP) {
             point = project(R1, R2, K1, K2, a, b, t, p);
             plotx = point.x + @as(f32, @floatFromInt(raw.width)) / 2;
-            ploty = point.y + @as(f32, @floatFromInt(raw.height - 5)) / 2;
+            ploty = point.y + @as(f32, @floatFromInt(raw.height -| 5)) / 2;
             const L = point.L;
 
             const color: u16 = if (L > 0) DRAW_COLORA else DRAW_COLORB;
@@ -125,8 +125,8 @@ pub fn torus(plt: *plotter.Plotter, raw: *tty.RawMode, a: f32, b: f32) !void {
             try raw.print(E.GOTO, .{ 2, 0 });
         } else p = 0;
     }
-    const ux: u16 = @intFromFloat(plotx);
-    const uy: u16 = @intFromFloat(ploty);
+    const ux = @trunc(plotx);
+    const uy = @trunc(ploty);
     try raw.print( //
         "{d}x{d} | t={d:>4.2}, p={d:>4.2}, a={d:>4.2}, b={d:>4.2}\r\n" ++
             "real_(x,y)=({d:>6.2},{d:>6.2})\r\n" ++
@@ -292,3 +292,32 @@ const K1 = CONFIG.TORUS.K1;
 const K2 = CONFIG.TORUS.K2;
 const R1 = CONFIG.TORUS.R1;
 const R2 = CONFIG.TORUS.R2;
+
+test "torus rotation clips safely on small terminals" {
+    for ([_][2]u16{ .{ 80, 24 }, .{ 40, 12 }, .{ 1, 1 }, .{ 0, 0 } }) |size| {
+        var raw: tty.RawMode = .{
+            .orig_termios = undefined,
+            .tty = undefined,
+            .io = std.testing.io,
+            .width = size[0],
+            .height = size[1],
+            .buffer = std.Io.Writer.Allocating.init(std.testing.allocator),
+        };
+        defer raw.buffer.deinit();
+        var plot = plotter.Plotter.init(std.testing.allocator, &raw);
+        defer plot.deinit();
+        var a: f32 = 0;
+        var b: f32 = -0.4;
+        for (0..400) |_| {
+            a += 0.05;
+            b += 0.02;
+            try torus(&plot, &raw, a, b);
+            var keys = plot.buffer.keyIterator();
+            while (keys.next()) |key| {
+                try std.testing.expect(key[0] < raw.width);
+                try std.testing.expect(key[1] < raw.height);
+            }
+            raw.buffer.clearRetainingCapacity();
+        }
+    }
+}
